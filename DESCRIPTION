@@ -1,0 +1,18 @@
+Package: ComparativeAnalysisTool
+Title: Compare Conserved Regions of Regulation
+Version: 0.0.0.9000
+Authors@R: person("Minhein", "Htet", email="htetm@uchicago.edu", role=c("aut", "cre"))
+Description: Tools to help analyze and compare which genes and accompanying regulatory regions
+    are structurally conserved between species from two lists of genes/regions. Regions of Regulation are expected
+    to be 500 kilo base or higher to reflect potential Topologically Associating Domains.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Depends: R (>= 3.5)
+Imports: data.table, GenomicRanges, grid, ggnewscale, ggplot2, igraph, IRanges, R.utils, rappdirs, rtracklayer, stringr, shiny
+Remotes:
+    bioc::GenomicRanges,
+    bioc::IRanges,
+    bioc::rtracklayer
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
