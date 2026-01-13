@@ -5,7 +5,15 @@
 \title{Convert genomic positions formatted in
 bed file like data frame between genomes}
 \usage{
-run_CAT(species, genome, genes, peaks = NULL)
+run_CAT(
+  species,
+  genome,
+  genes,
+  peaks = NULL,
+  disttobreak = 1e+05,
+  dist_to_group = 50000,
+  exp_rocr = 5e+05
+)
 }
 \arguments{
 \item{species}{Which species did the genes and genomic positions come from? Hsapiens or Mmusculus}
@@ -15,6 +23,8 @@ run_CAT(species, genome, genes, peaks = NULL)
 \item{genes}{A vector of gene symbols. Be aware the capitalization matters.}
 
 \item{peaks}{A bed file like dataframe. Requires a "chromosome", "start", "end", "symbol". The symbol is just a unique id for the peak. Requires internet for the first time you run this to download graph files from UCSC}
+
+\item{disttobreak}{How close should the group be to an evolutionary breakpoint to be considered at risk?}
 }
 \value{
 Tables summarizing 1) groups and proximity to breakpoints, 2-3) percentage of input genes we found one to one orthologs for, 4) the 1st table with cumulative position adjustment for plotting purposes, 6) long form matrix of distances between genes

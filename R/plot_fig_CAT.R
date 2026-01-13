@@ -16,12 +16,6 @@
 #' @importFrom ggplot2 element_blank
 #' @importFrom grid arrow unit
 #' @importFrom ggnewscale new_scale_color
-
-#' Create output plots after doing run_CAT()
-#' @param chromosome_vec chromosomes of interest to view in plots. Default is all chromosomes.
-#' @param back_df Dataframe with the start and end positions of known coding genes with one to one ortholog
-#' @param front_df Dataframe with the start and end positions of genes/regions of interest
-#' @return A manhattan plot comparing the conservation patterns of 2 sets of gene inputs
 #' @keywords internal
 ## Run all the plots
 risky_plot <- function(front_df1, front_df2, chromosome_vec = "All", back_df = background) {
