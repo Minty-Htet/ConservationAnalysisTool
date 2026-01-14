@@ -3,8 +3,8 @@
 #' @keywords internal
 
 plot_tab_CAT <- function(chromosome_vec, cat_list) {
-    show_table <- cat_list[1][
-      chromosome %in% chromosome_vec & symbol != ""
+    show_table <- cat_list[
+      cat_list$chromosome %in% chromosome_vec & cat_list$symbol != ""
     ][
       , group_id := as.character(group_id)
     ][

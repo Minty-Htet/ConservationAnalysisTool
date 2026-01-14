@@ -3,7 +3,7 @@
 app_ui <- function() {
   fluidPage(
     # 1. Add busy spinner and global styles
-    add_busy_spinner(spin = "fading-circle"),
+    #add_busy_spinner(spin = "fading-circle"),
     
     tags$head(
       tags$style(HTML("

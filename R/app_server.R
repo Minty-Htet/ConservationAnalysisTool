@@ -5,7 +5,7 @@
 #' @importFrom stringr str_split
 #' @keywords internal
 
-server <- function(input, output, session) {
+app_server <- function(input, output, session) {
 
   # Message shown when starting the thing  
   observeEvent(input$go_button, {
@@ -129,22 +129,22 @@ server <- function(input, output, session) {
   ## Start Computations
   ## Get the tables ready
   input1_tables <- reactive({
-    req(chosen_inputs1)
+    req(chosen_inputs1())
     cat1 <- run_CAT(
     species = input$species,
     genome = chosen_genome(),
-    genes = chosen_inputs1
+    genes = chosen_inputs1()
     )
     return(cat1)
   })
 
   ## Get the tables ready
   input2_tables <- reactive({
-    req(chosen_inputs2)
+    req(chosen_inputs2())
     cat2 <- run_CAT(
     species = input$species,
     genome = chosen_genome(),
-    genes = chosen_inputs2
+    genes = chosen_inputs2()
     )
     return(cat2)
   })
@@ -152,7 +152,8 @@ server <- function(input, output, session) {
 
   ## Rendering Tables
   output$risk_render1 <- DT::renderDataTable({
-    return(plot_tab_CAT(input1_tables()))
+    req(input1_tables())
+    return(plot_tab_CAT(chosen_chr(), input1_tables()[1] ))
   },
   options = list(
   dom = 't',
@@ -164,7 +165,8 @@ server <- function(input, output, session) {
   )
 
   output$risk_render2 <- DT::renderDataTable({
-    return(plot_tab_CAT(input2_tables()))
+    req(input2_tables())
+    return(plot_tab_CAT(chosen_chr(), input2_tables()[1]))
   },
   options = list(
   dom = 't',
