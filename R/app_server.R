@@ -166,7 +166,7 @@ app_server <- function(input, output, session) {
 
   output$risk_render2 <- DT::renderDataTable({
     req(input2_tables())
-    return(plot_tab_CAT(chosen_chr(), input2_tables()[1]))
+    return(plot_tab_CAT(chosen_chr(), input2_tables()[[1]]))
   },
   options = list(
   dom = 't',
@@ -178,5 +178,10 @@ app_server <- function(input, output, session) {
   )
 
   ## Rendering Plots
+  output$risk_plot <- renderPlot({
+    req(input1_tables())
+    req(input2_tables())
+    return(risky_plot(input$species, chosen_chr(), input1_tables(), input2_tables()))
+  })
 
 }

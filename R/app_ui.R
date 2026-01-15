@@ -45,19 +45,19 @@ app_ui <- function() {
         
         conditionalPanel(
           condition = "input.species === 'Mmusculus'",
-          selectInput('mmver', 'Mouse Genome Version for Peaks (to mm39)',
+          selectInput('mmver', 'Mouse Genome Version for Peaks',
                       c('mm10', 'mm39'), width = "100%"),
           # Unique ID for Mouse Chromosomes
-          selectInput('chromosome_mm', 'Chromosome (Mouse)', 
+          selectInput('chromosome', 'Chromosome (Mouse)', 
                       choices = c("All", chr_order), multiple = TRUE, selected = "All", width = "100%")
         ),
         
         conditionalPanel(
           condition = "input.species === 'Hsapiens'",
-          selectInput('hsver', 'Human Genome Version for Peaks (to mm39)', 
+          selectInput('hsver', 'Human Genome Version for Peaks', 
                       c('hg38'), width = "100%"),
           # Unique ID for Human Chromosomes
-          selectInput('chromosome_hs', 'Chromosome (Human)', 
+          selectInput('chromosome', 'Chromosome (Human)', 
                       choices = c("All", hs_chr_order), multiple = TRUE, selected = "All", width = "100%")
         ),
         
@@ -70,10 +70,14 @@ app_ui <- function() {
       mainPanel(
         tabsetPanel(
           tabPanel(
-            "Risky Regions",
+            "Risky Regions Tables",
             #plotOutput('risk_plot'),
             DT::dataTableOutput('risk_render1'),
             DT::dataTableOutput('risk_render2')
+          ),
+          tabPanel(
+            "Risky Regions Plot",
+            plotOutput('risk_plot')
           )
         ) # end tabsetPanel
       ) # end mainPanel
