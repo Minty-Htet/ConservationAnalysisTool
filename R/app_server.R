@@ -15,7 +15,7 @@ app_server <- function(input, output, session) {
   # Choose chromosomes of interest
   chosen_chr <- reactive({
     if ("All" %in% input$chromosome) {
-      if (input$species == "Mmusculus") chr_order else hs_chr_order
+      if (input$species == "Mmusculus") chr_order[-length(chr_order)] else hs_chr_order[-length(hs_chr_order)]
     } else {
       input$chromosome
     }
@@ -181,7 +181,7 @@ app_server <- function(input, output, session) {
   output$risk_plot <- renderPlot({
     req(input1_tables())
     req(input2_tables())
-    return(risky_plot(input$species, chosen_chr(), input1_tables(), input2_tables()))
+    return(risky_plot(input$species, chosen_chr(), input1_tables()[[1]], input2_tables()[[1]]))
   })
 
 }

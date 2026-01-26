@@ -28,7 +28,7 @@ merge_df <- function(species, input_long) {
   }}
 
 ## Function to get distance between genes
-get_distance_matrix <- function(species, version, genes, peak) {
+get_distance_matrix <- function(species, genes) {
   chosen_genes <- if (species == "Mmusculus") {
     all_start_end <- as.data.table(mouse_all_startend)
     all_start_end[symbol %in% genes]

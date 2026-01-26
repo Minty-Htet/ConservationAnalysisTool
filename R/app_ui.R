@@ -30,7 +30,7 @@ app_ui <- function() {
       "))
     ),
     
-    titlePanel("Ortholog Dashboard"),
+    titlePanel("Comparative Dashboard"),
     
     sidebarLayout(
       sidebarPanel(
@@ -77,7 +77,7 @@ app_ui <- function() {
           ),
           tabPanel(
             "Risky Regions Plot",
-            plotOutput('risk_plot')
+            plotOutput('risk_plot', height = "800px")
           )
         ) # end tabsetPanel
       ) # end mainPanel

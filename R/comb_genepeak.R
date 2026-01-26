@@ -15,7 +15,7 @@ comb_genepeak <- function(species, genome, gene_vec, peak_vec = empty_peak, dist
     ## Get the gene part
     genes_part <-  attach_orthoinfo(
         assign_groupid(
-            get_distance_matrix(species, genome, gene_vec),
+            get_distance_matrix(species, gene_vec),
             exp_rocr
         ), 
         species

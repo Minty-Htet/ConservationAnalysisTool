@@ -41,32 +41,35 @@ perc_table <- function(final_table, section = "genes") {
 
 ## Risk Region Table
 risky_table <- function(long_table, flag_table) {
-    flagged_table <- long_table[
+    flagged_table <- unique(long_table[
         !grepl("chr", symbol)
-    ]
-    flagged_table <- unique(flagged_table[ 
-        , lower_start_o := min(start_o), by = group_id
-
     ][
-      , lower_start := min(start), by = group_id
-    ][ 
-        , upper_end_o := max(end_o), by = group_id
-    ][
-      , upper_end := max(end), by = group_id
-    ][
-        , .(group_id, lower_start, upper_end, chromosome)
+      , .(symbol, group_id, start, end, chromosome)
     ])
+    colnames(flagged_table) <- c('symbol', 'group_id', 'g_start', 'g_end', 'chromosome')
+    #flagged_table <- unique(flagged_table[ 
+    #    , lower_start_o := min(start_o), by = group_id
+    #][
+    #  , lower_start := min(start), by = group_id
+    #][ 
+    #    , upper_end_o := max(end_o), by = group_id
+    #][
+    #  , upper_end := max(end), by = group_id
+    #][
+    #    , .(symbol, group_id, lower_start, upper_end, chromosome)
+    #])
     hits <- as.data.table(flag_table)[ 
         flagged_table, on = .(chromosome), allow.cartesian = TRUE
     ][
-        (start <= lower_start & lower_start <= end) | 
-        (start <= upper_end & upper_end <= end) 
+        (start < g_start & g_start < end) | 
+        (start < g_end & g_end < end) 
     ]
+    hits_symb_vec <- unique(hits$symbol)
     hits_vec <- unique(hits$group_id)
     long_table[
-        , In_Risk := fifelse(group_id %in% hits_vec, TRUE, FALSE)
+        , In_Risk := fifelse(symbol %in% hits_symb_vec, TRUE, FALSE)
     ][ 
-        , Risk_status := fifelse(In_Risk == TRUE, "By Breakpoint", Group_status)
+        , Risk_status := fifelse(group_id %in% hits_vec, "By Breakpoint", Group_status)
     ]
     return(long_table)
 }
@@ -89,12 +92,7 @@ break_pts <- function(species, final_table, disttobreak) {
   flag_dt <- data.table::copy(flag_df)
   ## For mice relabel which is reference and ortholog species
   if (species == "Mmusculus") {
-    cumulative_df <- mm_cumulative_df
-    colnames(cumulative_df) <- c("chromosome", "position")
-    back_dt <- as.data.table(mouse_to_human_genes)[
-      mmusculus_chromosome %in% hs_chr_order
-    ]
-  for (loop in list(back_dt, flag_dt)) {
+  for (loop in list(flag_dt)) {
      setnames(loop, 
     c(
       "mmusculus_chromosome", 
@@ -117,12 +115,7 @@ break_pts <- function(species, final_table, disttobreak) {
   }
   ## For humans relabel which is reference and ortholog species
   if (species == "Hsapiens") {
-    cumulative_df <- hs_cumulative_df
-    colnames(cumulative_df) <- c("chromosome", "position")
-    back_dt <- as.data.table(mouse_to_human_genes)[
-      hsapiens_chromosome %in% hs_chr_order
-    ]
-  for (loop in list(back_dt, flag_dt)) {
+  for (loop in list(flag_dt)) {
      setnames(loop, 
     c(
       "mmusculus_chromosome", 
@@ -154,22 +147,6 @@ break_pts <- function(species, final_table, disttobreak) {
     print("Type Hsapiens or Mmusculus for species")
   }
 
-  ## Combine the cumulative positions to the start and end positions
-  back_dt <- cumulative_df[
-    back_dt, on = "chromosome"
-  ][
-    , mid := (start + end)/2 + as.numeric(position)
-  ][
-    , mid_o := (start_o + end_o)/2
-  ]
-    adj_dt <- cumulative_df[
-        risky_table(final_table[[1]], flag_dt), on = "chromosome"
-    ][
-        , mid := (start + end)/2 + as.numeric(position)
-    ][
-        , mid_o := (start_o + end_o)/2
-    ]
-
     list_of_tables <- list()
     ## Long table
     list_of_tables[[1]] <- risky_table(final_table[[1]], flag_dt)
@@ -178,7 +155,5 @@ break_pts <- function(species, final_table, disttobreak) {
     #list_of_tables[[2]] <- perc_table(final_table[[1]], "genes")
     #list_of_tables[[3]] <- perc_table(final_table[[1]], "peaks")
     # Combined the cumulative positions to the start and end positions
-    #list_of_tables[[4]] <- back_dt
-    #list_of_tables[[5]] <- adj_dt
     return(list_of_tables)
 }
