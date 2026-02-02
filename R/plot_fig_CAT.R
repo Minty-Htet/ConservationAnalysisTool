@@ -28,16 +28,19 @@ get_order <- function(cat_obj1, cat_obj2) {
   gene_order <- unique(rbind(
     cat_obj1[[1]][ , .(symbol, chromosome, start)],
     cat_obj2[[1]][, .(symbol, chromosome, start)]
-  ))[ 
+  ))[
+    !grepl('chr', symbol)
+  ][ 
     order(start)
   ]
-  gene_order <- gene_order[ 
-    , symbol := factor(symbol, levels = symbol)
-  ][ 
-    , coord := as.numeric(symbol)
-  ][ 
-    , .(symbol, coord)
-  ]
+  gene_order <- unique(
+    gene_order[ 
+      , symbol := factor(symbol, levels = unique(symbol))
+    ][ 
+      , coord := as.numeric(symbol)
+    ][ 
+      , .(symbol, coord)
+    ])
   return(gene_order)
 }
 
@@ -114,6 +117,12 @@ risky_plot <- function(species, chromosome_vec, front_df1, front_df2, background
     , mid := (start + end)/2 + position
   ][ 
     , mid_o := (start_o + end_o)/2
+  ][ 
+    , type := fifelse(grepl("chr", symbol), 0.75, 1)
+  ][ 
+    , show := fifelse(is.na(status), 0.75, 1)
+  ][
+    , type_spacing := fifelse(grepl("chr", symbol), 0.9, 1)
   ]
   down_df1 <- front_df2[
     , .(group_id, symbol, chromosome, start, end, chromosome_o, start_o, end_o, In_Risk, Risk_status, Group_status)
@@ -127,12 +136,18 @@ risky_plot <- function(species, chromosome_vec, front_df1, front_df2, background
     , mid := (start + end)/2 + position
   ][ 
     , mid_o := (start_o + end_o)/2
+  ][ 
+    , type := fifelse(grepl("chr", symbol), 0.75, 1)
+  ][ 
+    , show := fifelse(is.na(status), 0.75, 1)
+  ][
+    , type_spacing := fifelse(grepl("chr", symbol), 0.9, 1)
   ]
   
   fil_back <- back_df[chromosome %in% chromosome_vec & !grepl("chr", symbol)]
   up_df1 <- up_df1[chromosome %in% chromosome_vec]
   down_df1 <- down_df1[chromosome %in% chromosome_vec]
-  noto_space <- max(fil_back$mid_o) * 1.1
+  noto_space <- max(fil_back$mid_o) * 1.3
   yoto_space <- max(fil_back$mid_o) * 0.1
   
   risk_plot <- ggplot(data = fil_back) +
@@ -153,17 +168,18 @@ risky_plot <- function(species, chromosome_vec, front_df1, front_df2, background
     new_scale_color() +
     geom_segment(
       data = up_df1[!is.na(chromosome_o)],
-      aes(x = mid, xend = mid, yend = mid_o + yoto_space, y = mid_o + 2 * yoto_space, color = status),
+      aes(x = mid, xend = mid, yend = mid_o + yoto_space, y = mid_o + 2 * yoto_space * type, color = status, alpha = show),
       arrow = arrow(length = unit(0.1, "cm"), type = "closed"), 
       linewidth = 0.2) + # for one to one orthos
-    geom_point(data = up_df1[is.na(chromosome_o)], aes(x = mid, y = noto_space, color = status), shape = 6) + # for no orthos
+    geom_point(data = up_df1[is.na(chromosome_o)], aes(x = mid, y = noto_space/type_spacing , color = status, alpha = show), shape = 6) + # for no orthos
     geom_segment(
       data = down_df1[!is.na(chromosome_o)], 
-      aes(x = mid, xend = mid, yend = -mid_o - yoto_space, y = -mid_o - 2 * yoto_space, color = status),
+      aes(x = mid, xend = mid, yend = -mid_o - yoto_space, y = -mid_o - 2 * yoto_space * type, color = status, alpha = show),
       arrow = arrow(length = unit(0.1, "cm"), type = "closed"), 
       linewidth = 0.2) +
-    geom_point(data = down_df1[is.na(chromosome_o)], aes(x = mid, y = -noto_space, color = status), shape = 2) +
-    scale_color_manual(values=c("In Risk" = "#FF5733", "Not in Risk" = "blue", "Group in Risk" = "#E68613", "Group Split" = "darkorchid2"))
+    geom_point(data = down_df1[is.na(chromosome_o)], aes(x = mid, y = -noto_space/type_spacing, color = status, alpha = show), shape = 2) +
+    scale_color_manual(values=c("In Risk" = "#FF5733", "Not in Risk" = "blue", "Group in Risk" = "#E68613", "Group Split" = "darkorchid2")) +
+    guides(alpha = "none")
   return(risk_plot)
 }
 
@@ -173,6 +189,8 @@ heatmap_for_plot <- function(species, chromosome_vec, cat_obj1, cat_obj2) {
   order_dt <- get_order(cat_obj1, cat_obj2)
   ## Top half of the distances
   in_group_df <- cat_obj1[[2]][
+    !grepl('chr', symbol) & !grepl('chr', symbol2)
+  ][
     (chromosome %in% chromosome_vec) & (chromosome2 %in% chromosome_vec)
   ][
     , .(symbol, symbol2, symbol_o, distance, grouped, Group_status, one_to_one, group_id, group_id2)
@@ -181,9 +199,11 @@ heatmap_for_plot <- function(species, chromosome_vec, cat_obj1, cat_obj2) {
   ][ 
     order_dt, on = list(symbol2 = symbol)
   ][ 
-    distance <= 0
+    , distance := abs(distance)
   ][ 
     !is.na(grouped) | symbol == symbol2 
+  ][
+     i.coord >= coord
   ]
   ## For the diagnoal triangles
   in_group_diag <- in_group_df[
@@ -218,6 +238,8 @@ heatmap_for_plot <- function(species, chromosome_vec, cat_obj1, cat_obj2) {
   ]
   ## Bottom half of the distances
   in_group_df2 <- cat_obj2[[2]][
+    !grepl('chr', symbol) & !grepl('chr', symbol2)
+  ][
     (chromosome %in% chromosome_vec) & (chromosome2 %in% chromosome_vec)
   ][
     , .(symbol, symbol2, symbol_o, distance, grouped, Group_status, one_to_one, group_id, group_id2)
@@ -226,9 +248,11 @@ heatmap_for_plot <- function(species, chromosome_vec, cat_obj1, cat_obj2) {
   ][ 
     order_dt, on = list(symbol2 = symbol)
   ][ 
-    distance >= 0
+    , distance := abs(distance)
   ][ 
     !is.na(grouped) | symbol == symbol2 
+  ][
+     i.coord <= coord
   ]
   ## Bottom Diagonals
   in_group_diag2 <- in_group_df2[
@@ -390,24 +414,34 @@ group_plot <- function(species, chromosome_vec, cat_obj1, cat_obj2) {
 ortho_plot <- function(species, chromosome_vec, cat_obj1, cat_obj2) {
   list_matrices <- heatmap_for_plot(species, chromosome_vec, cat_obj1, cat_obj2)
   in_group_df = list_matrices[[1]]
-  in_group_diag = list_matrices[[2]]
+  in_group_diag = list_matrices[[2]][
+    , Has_ortho := fifelse(is.na(symbol_o), FALSE, TRUE)
+  ]
   group_up_df = list_matrices[[3]]
   group_diag = list_matrices[[4]]
   in_group_df2 = list_matrices[[5]]
-  in_group_diag2 = list_matrices[[6]]
+  in_group_diag2 = list_matrices[[6]][
+    , Has_ortho := fifelse(is.na(symbol_o), FALSE, TRUE)
+  ]
   group_up_df = list_matrices[[7]]
   group_diag2 = list_matrices[[8]]
   plot <- ggplot() +
-  geom_polygon(data = group_diag, aes(x = x, y = y, fill = one_to_one, group = id), color = 'black', linewidth = 0.25) +
-  geom_polygon(data = group_diag2, aes(x = x, y = y, fill = one_to_one, group = id), color = 'black', linewidth = 0.25) +
-  geom_polygon(data = in_group_diag, aes(x = x ,y = y, group = id, fill = one_to_one), color = 'black', linewidth = 0.1) +
-  geom_polygon(data = in_group_diag2, aes(x = x, y = y, group = id, fill = one_to_one), color = 'black', linewidth = 0.1) +
+  geom_polygon(data = group_diag, aes(x = x, y = y, fill = one_to_one, group = id), alpha = 0.2, color = 'black', linewidth = 0.25) +
+  geom_polygon(data = group_diag2, aes(x = x, y = y, fill = one_to_one, group = id), alpha = 0.2, color = 'black', linewidth = 0.25) +
+  geom_polygon(data = in_group_diag, aes(x = x ,y = y, group = id, fill = one_to_one, alpha = Has_ortho), color = 'black', linewidth = 0.1) +
+  geom_polygon(data = in_group_diag2, aes(x = x, y = y, group = id, fill = one_to_one, alpha = Has_ortho), color = 'black', linewidth = 0.1) +
+  scale_alpha_manual(values = c("FALSE" = 0.2, "TRUE" = 1)) +
   coord_fixed() +
   theme(legend.position = 'bottom') +
   labs(
     x = "Gene List 2",
     y = "Gene List 1",
-    fill = "Grouping"
+    fill = "Grouping",
+    alpha = 'Has ortho'
+  ) +
+  guides(
+    fill = guide_legend(nrow = 2, byrow = TRUE),
+    alpha = guide_legend(nrow = 2, byrow = TRUE)
   )
   return(plot)
 }
@@ -416,24 +450,34 @@ ortho_plot <- function(species, chromosome_vec, cat_obj1, cat_obj2) {
 location_plot <- function(species, chromosome_vec, cat_obj1, cat_obj2) {
   list_matrices <- heatmap_for_plot(species, chromosome_vec, cat_obj1, cat_obj2)
   in_group_df = list_matrices[[1]]
-  in_group_diag = list_matrices[[2]]
+  in_group_diag = list_matrices[[2]][
+    , Has_ortho := fifelse(is.na(symbol_o), FALSE, TRUE)
+  ]
   group_up_df = list_matrices[[3]]
   group_diag = list_matrices[[4]]
   in_group_df2 = list_matrices[[5]]
-  in_group_diag2 = list_matrices[[6]]
+  in_group_diag2 = list_matrices[[6]][
+    , Has_ortho := fifelse(is.na(symbol_o), FALSE, TRUE)
+  ]
   group_up_df = list_matrices[[7]]
   group_diag2 = list_matrices[[8]]
   plot <- ggplot() +
-  geom_polygon(data = group_diag, aes(x = x, y = y, fill = Group_status, group = id), color = 'black', linewidth = 0.25) +
-  geom_polygon(data = group_diag2, aes(x = x, y = y, fill = Group_status, group = id), color = 'black', linewidth = 0.25) +
-  geom_polygon(data = in_group_diag, aes(x = x ,y = y, group = id, fill = Group_status), color = 'black', linewidth = 0.1) +
-  geom_polygon(data = in_group_diag2, aes(x = x, y = y, group = id, fill = Group_status), color = 'black', linewidth = 0.1) +
+  geom_polygon(data = group_diag, aes(x = x, y = y, fill = Group_status, group = id), alpha = 0.2, color = 'black', linewidth = 0.25) +
+  geom_polygon(data = group_diag2, aes(x = x, y = y, fill = Group_status, group = id), alpha = 0.2, color = 'black', linewidth = 0.25) +
+  geom_polygon(data = in_group_diag, aes(x = x ,y = y, group = id, fill = Group_status, alpha = Has_ortho), color = 'black', linewidth = 0.1) +
+  geom_polygon(data = in_group_diag2, aes(x = x, y = y, group = id, fill = Group_status, alpha = Has_ortho), color = 'black', linewidth = 0.1) +
+  scale_alpha_manual(values = c("FALSE" = 0.2, "TRUE" = 1)) +
   coord_fixed() +
   theme(legend.position = 'bottom') +
   labs(
     x = "Gene List 2",
     y = "Gene List 1",
-    fill = "Grouping"
-  ) 
+    fill = "Grouping",
+    alpha = 'Has ortho'
+  ) +
+  guides(
+    fill = guide_legend(nrow = 2, byrow = TRUE),
+    alpha = guide_legend(nrow = 2, byrow = TRUE)
+  )
   return(plot)
 }

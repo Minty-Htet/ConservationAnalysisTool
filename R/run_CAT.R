@@ -10,8 +10,8 @@
 #' @export
 
 ## To run the Comparative Analysis Tool
-run_CAT <- function(species, genome, genes, peaks = NULL, disttobreak = 100000, dist_to_group = 50000, exp_rocr = 500000) {
-    ex1 <- comb_genepeak(species, genome, genes, peaks, dist_to_group, exp_rocr)
+run_CAT <- function(species, genome, genes, peaks = NULL, disttobreak = 100000, dist_to_group = 50000, exp_rocr = 500000, threshold = 0.5) {
+    ex1 <- comb_genepeak(species, genome, genes, peaks, dist_to_group, exp_rocr, threshold)
     risk_tables <- conservation_table(ex1[[2]], ex1[[1]])
     final_table <- break_pts(species, risk_tables, disttobreak)
     return(final_table)

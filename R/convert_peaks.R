@@ -13,7 +13,7 @@ choose_chains <-  function(genome) {
     chain <- list()
     if(genome == "mm39") {
         chain[[1]] <- import.chain(get_chain_file("mm39", "mm10"))
-        chain[2] <- import.chain(get_chain_file("mm10", "hg38"))
+        chain[[2]] <- import.chain(get_chain_file("mm10", "hg38"))
     }
     if(genome == "mm10") {
         chain[[1]] <- import.chain(get_chain_file("mm10", "mm39"))
@@ -30,25 +30,36 @@ choose_chains <-  function(genome) {
 # liftover with rtracklayer
 # Must do manual smoothing
 #' @keywords internal
-run_liftover <- function(peaks, chain) {
+run_liftover <- function(peaks, chain, threshold = 0.5) {
     liftover_dt <- data.table(start = "", end = "", chromosome = "", symbol = "")
     peaks <- as.data.frame(peaks)
+    peaks$total_len <- peaks$end - peaks$start
     lift_result <- as.data.table(
         as.data.frame(liftOver(
         GRanges(seqnames = peaks[,1], ranges = IRanges(start = peaks[,2], end = peaks[,3])),
         chain
     )))[ 
         , .(seqnames, start, end)
+    ][
+        order(seqnames, start)
     ]
     if(nrow(lift_result) > 0) { # If there are ortholog hits
         lift_result <- lift_result[ 
-            , adj_start := min(start) # Smooth the start sites
+            , adj_start := min(start), by = .(seqnames) # Smooth the start sites
             ][ 
-            , adj_end := max(end) # Smooth the end sites
+            , adj_end := max(end), by = .(seqnames) # Smooth the end sites
             ][  
             , adj_chromosome := seqnames
             ][ 
             , adj_symbol := peaks$symbol # Label the peak with ID
+            ][ 
+                as.data.table(peaks)[, .(symbol, total_len)], on = .(adj_symbol = symbol)
+            ][ 
+                ,len := adj_end - adj_start
+            ][ 
+                len > threshold*total_len
+            ][
+                , .(adj_chromosome, adj_start, adj_end, adj_symbol)
             ]
     } else { # If no ortholog hits
         lift_result <- lift_result[ 
@@ -61,11 +72,12 @@ run_liftover <- function(peaks, chain) {
             , adj_symbol := peaks$symbol 
             ]
     }
-     adj_cols <- grep("^adj_", names(lift_result), value = TRUE)
-     lift_result <- unique(lift_result[, ..adj_cols])
-     data.table::setnames(lift_result, sub("^adj_", "", names(lift_result)))
-     data.table::setcolorder(lift_result, c("chromosome", "start", "end", "symbol"))
-    return(lift_result)
+    adj_cols <- grep("^adj_", names(lift_result), value = TRUE)
+    lift_result <- unique(lift_result[, ..adj_cols])
+    data.table::setnames(lift_result, sub("^adj_", "", names(lift_result)))
+    lift_result <- lift_result[
+        , .(chromosome, start, end, symbol)
+    ]
 }
 
 #' Convert genomic positions formatted in
@@ -75,7 +87,7 @@ run_liftover <- function(peaks, chain) {
 #' @return A list containing tables of 1) the mouse to human coordinates, 2) the mm10 to mm39 or mm39 to mm10 coordinates, 3) the original table with new columns showing the other species' coodinates, 4) the coordinates which failed to map to the other species
 #' @keywords export
 #' @export
-convert_peaks <- function(peaks, genome) {
+convert_peaks <- function(peaks, genome, threshold = 0.5) {
     # Choose the chains needed
     chain <- choose_chains(genome)
     # Make a list of liftover results
@@ -91,31 +103,59 @@ convert_peaks <- function(peaks, genome) {
     peaks$end <- as.numeric(peaks$end)
     if (genome == "mm39") {
         for (x in 1:length(peaks[,4])) {
-            mm39ToMm10 <- run_liftover(peaks[x,], chain[[1]]) #mm39 to mm10
-            mm10ToHg38 <- run_liftover(mm39ToMm10, chain[[2]]) #mm10 to hg38
-            liftover_list[[2]] <- rbind(liftover_list[[2]], mm39ToMm10)
-            liftover_list[[1]] <- rbind(liftover_list[[1]], mm10ToHg38)
+            mm39ToMm10 <- run_liftover(peaks[x,], chain[[1]], threshold) #mm39 to mm10
+            mm10ToHg38 <- run_liftover(mm39ToMm10, chain[[2]], threshold) #mm10 to hg38
+            liftover_list[[2]] <- unique(rbind(liftover_list[[2]], mm39ToMm10))
+            liftover_list[[1]] <- unique(rbind(liftover_list[[1]], mm10ToHg38))
             }
         }
     if (genome == "mm10") {
         for (x in 1:length(peaks[,4])) {
-            mm10ToMm39 <- run_liftover(peaks[x,], chain[[1]]) #mm10 to mm39
-            mm10ToHg38 <- run_liftover(peaks[x,], chain[[2]]) #mm10 to hg38
-            liftover_list[[2]] <- rbind(liftover_list[[2]], mm10ToMm39)
-            liftover_list[[1]] <- rbind(liftover_list[[1]], mm10ToHg38)
+            mm10ToMm39 <- run_liftover(peaks[x,], chain[[1]], threshold) #mm10 to mm39
+            mm10ToHg38 <- run_liftover(peaks[x,], chain[[2]], threshold) #mm10 to hg38
+            liftover_list[[2]] <- unique(rbind(liftover_list[[2]], mm10ToMm39))
+            liftover_list[[1]] <- unique(rbind(liftover_list[[1]], mm10ToHg38))
             }
         }
     if (genome == "hg38") { 
         for (x in 1:length(peaks[,4])) {
-            hg38ToMm39 <- run_liftover(peaks[x,], chain[[1]]) #hg38 to mm39
-            liftover_list[[1]] <- rbind(liftover_list[[1]], hg38ToMm39)
+            hg38ToMm39 <- run_liftover(peaks[x,], chain[[1]], threshold) #hg38 to mm39
+            liftover_list[[1]] <- unique(rbind(liftover_list[[1]], hg38ToMm39))
             }
         }
     colnames(liftover_list[[1]]) <- c("chromosome_o", "start_o", "end_o", "symbol") # label the ortholog results
-    liftover_list[[3]] <- as.data.table(liftover_list[[1]])[  
-        as.data.table(peaks), on = .NATURAL # Join with the original peaks table
+    if (genome == 'mm10') {
+        liftover_list[[3]] <- as.data.table(liftover_list[[1]])[  
+            as.data.table(liftover_list[[2]]), on = .NATURAL # Join with the original peaks table
         ][ 
             , symbol_o := paste(chromosome_o,start_o,end_o, sep = ".")
+        ][
+            , start := as.numeric(start)
+        ][ 
+            , end := as.numeric(end)
+        ][
+            , start_o := as.numeric(start_o)
+        ][ 
+            , end_o := as.numeric(end_o)
+        ][
+            symbol != ""
         ]
+    } else {
+        liftover_list[[3]] <- as.data.table(liftover_list[[1]])[  
+            as.data.table(peaks), on = .NATURAL # Join with the original peaks table
+        ][ 
+            , symbol_o := paste(chromosome_o,start_o,end_o, sep = ".")
+        ][
+            , start := as.numeric(start)
+        ][ 
+            , end := as.numeric(end)
+        ][
+            , start_o := as.numeric(start_o)
+        ][ 
+            , end_o := as.numeric(end_o)
+        ][
+            symbol != ""
+        ]
+    }
     return(liftover_list)
 }

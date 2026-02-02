@@ -87,8 +87,8 @@ conservation_table <- function(matrix, table) {
   ]
   
   ## Build the heatmap matrix
-  heatmap_dt <- status_dt[
-    matrix, on = "group_id"
+  heatmap_dt <- matrix[
+    status_dt, on = "group_id"
     ]
   colnames(status_dt) <- str_replace(colnames(status_dt), "$", "2")
   heatmap_dt <- status_dt[heatmap_dt, on = "group_id2"]
@@ -99,9 +99,7 @@ conservation_table <- function(matrix, table) {
     ][, 
     grouped := fifelse(group_id != group_id2, "FALSE", 
     fifelse(in_group == TRUE & in_group2 == TRUE, "Grouped", "Singlet group")
-  )][
-    , i.in_group := NULL ## quick fix IDK where this comes from
-  ]
+  )]
   heatmap_dt[, symbol := factor(symbol, levels = unique(symbol))]
   heatmap_dt[, symbol2 := factor(symbol2, levels = unique(symbol2))]
 
@@ -110,12 +108,12 @@ conservation_table <- function(matrix, table) {
     table_dt[
          , chromosome := factor(chromosome, levels = hs_chr_order)
     ][ 
-    order(chromosome, start)
+      order(chromosome, start)
     ],
     heatmap_dt[
          , chromosome := factor(chromosome, levels = hs_chr_order)
     ][ 
-    order(chromosome, chromosome2, start, start2)
+      order(chromosome, chromosome2, start, start2)
     ]
   )
   return(final_tables)

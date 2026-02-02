@@ -28,16 +28,19 @@ merge_df <- function(species, input_long) {
   }}
 
 ## Function to get distance between genes
-get_distance_matrix <- function(species, genes) {
+get_distance_matrix <- function(species, genes, peaks) {
   chosen_genes <- if (species == "Mmusculus") {
     all_start_end <- as.data.table(mouse_all_startend)
-    all_start_end[symbol %in% genes]
+    all_start_end[symbol %in% genes][,.(chromosome,start,end,symbol)]
   } else {
     all_start_end <- as.data.table(human_all_start_end)
-    all_start_end[symbol %in% genes]
+    all_start_end[symbol %in% genes][,.(chromosome,start,end,symbol)]
   }
+  chosen_genes <- rbind(chosen_genes, peaks[, .(chromosome,start,end,symbol)])[
+    order(chromosome, start)
+  ]
   all_vec1 <- (chosen_genes$start + chosen_genes$end) * 0.5 # Use midpoints to calculate distance
-  names(all_vec1) <- chosen_genes$id
+  names(all_vec1) <- chosen_genes$symbol
   comp_matrix_all <- outer(all_vec1, all_vec1, "-")
   rownames(comp_matrix_all) <- colnames(comp_matrix_all)
   long_matrix_all <- as.data.table(comp_matrix_all, keep.rownames = "id")
@@ -45,13 +48,20 @@ get_distance_matrix <- function(species, genes) {
                        id.vars = "id", 
                        variable.name = "id2", 
                        value.name = "distance")
-  long_matrix_all[, ':='(
-   id = as.numeric(id),
-   id2 = as.numeric(as.character(id2))  # in case id2 is a factor
-  )]
-
-  matrix_long <- merge_df(species, long_matrix_all) 
-  colnames(matrix_long) <- c("id2", str_replace(colnames(matrix_long[, .SD, .SDcols = !("id2")]), ".id", ""))
-  matrix_long <- matrix_long[chromosome == chromosome2]
+  colnames(long_matrix_all) <- c('symbol', 'symbol2', 'distance')
+  if (species == "Mmusculus") {
+    all_start_end <- mouse_all_startend[, .(chromosome,start,end,symbol)]
+  } 
+  if (species == "Hsapiens") {
+    all_start_end <- human_all_start_end[, .(chromosome,start,end,symbol)]
+  }
+  matrix_long <- all_start_end[
+    long_matrix_all, on = .(symbol = symbol)
+  ]
+  matrix_long <- all_start_end[
+    matrix_long, on = .(symbol = symbol2)
+  ]
+  colnames(matrix_long)[grepl("i\\.", colnames(matrix_long))] <- gsub("$", "2", colnames(matrix_long)[grepl("i\\.", colnames(matrix_long))])
+  colnames(matrix_long) <- gsub("i\\.", "", colnames(matrix_long))
   return(matrix_long)
 }
