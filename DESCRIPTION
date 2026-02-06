@@ -8,7 +8,7 @@ Description: Tools to help analyze and compare which genes and accompanying regu
 License: MIT + file LICENSE
 Encoding: UTF-8
 Depends: R (>= 3.5)
-Imports: data.table, GenomicRanges, grid, ggnewscale, ggplot2, igraph, IRanges, R.utils, rappdirs, rtracklayer, stringr, shiny
+Imports: data.table, GenomicRanges, grid, ggnewscale, ggplot2, igraph, IRanges, pkgload, R.utils, rappdirs, rtracklayer, stringr, shiny
 Remotes:
     bioc::GenomicRanges,
     bioc::IRanges,
