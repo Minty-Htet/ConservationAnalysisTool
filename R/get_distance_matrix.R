@@ -39,7 +39,7 @@ get_distance_matrix <- function(species, genes, peaks) {
   chosen_genes <- rbind(chosen_genes, peaks[, .(chromosome,start,end,symbol)])[
     order(chromosome, start)
   ]
-  all_vec1 <- (chosen_genes$start + chosen_genes$end) * 0.5 # Use midpoints to calculate distance
+  all_vec1 <- (as.numeric(chosen_genes$start) + as.numeric(chosen_genes$end)) * 0.5 # Use midpoints to calculate distance
   names(all_vec1) <- chosen_genes$symbol
   comp_matrix_all <- outer(all_vec1, all_vec1, "-")
   rownames(comp_matrix_all) <- colnames(comp_matrix_all)

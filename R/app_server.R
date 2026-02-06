@@ -77,8 +77,8 @@ app_server <- function(input, output, session) {
       ][
         , end := fifelse(start2 > end2, start2, end2)
       ]
-      check2 <- check2[, .(chromosome, start, end, symbol)]
-      return(unique(check2))
+      check2 <- check2[, .(chromosome, start, end, symbol)][symbol != ""]
+      return(unique(check2$symbol))
     }, error = function(e) {
       showNotification("Invalid peak format! Use: chr.start.end", type = "error")
       NULL
@@ -118,8 +118,8 @@ app_server <- function(input, output, session) {
       ][
         , end := fifelse(start2 > end2, start2, end2)
       ]
-      check2 <- check2[, .(chromosome, start, end, symbol)]
-      return(unique(check2))
+      check2 <- check2[, .(chromosome, start, end, symbol)][symbol != ""]
+      return(unique(check2$symbol))
     }, error = function(e) {
       showNotification("Invalid peak format! Use: chr.start.end", type = "error")
       NULL
@@ -130,29 +130,58 @@ app_server <- function(input, output, session) {
   ## Get the tables ready
   input1_tables <- reactive({
     req(chosen_inputs1())
+    if (!is.null(input$list_in_peak) && nzchar(input$list_in_peak)) {
+      cat1 <- run_CAT(
+      species = input$species,
+      genome = chosen_genome(),
+      genes = chosen_inputs1(),
+      peaks =  chosen_peaks()
+      )
+    } else {
     cat1 <- run_CAT(
-    species = input$species,
-    genome = chosen_genome(),
-    genes = chosen_inputs1()
-    )
+      species = input$species,
+      genome = chosen_genome(),
+      genes = chosen_inputs1())
+    }
     return(cat1)
   })
 
   ## Get the tables ready
   input2_tables <- reactive({
     req(chosen_inputs2())
-    cat2 <- run_CAT(
-    species = input$species,
-    genome = chosen_genome(),
-    genes = chosen_inputs2()
-    )
+    if (!is.null(input$list_in_peak2) && nzchar(input$list_in_peak2)) {
+      cat2 <- run_CAT(
+      species = input$species,
+      genome = chosen_genome(),
+      genes = chosen_inputs2(),
+      peaks = chosen_peaks2()
+      )
+    } else {
+      cat2 <- run_CAT(
+      species = input$species,
+      genome = chosen_genome(),
+      genes = chosen_inputs2())
+    }
     return(cat2)
   })
   ## End Computations
 
+  ## Heatmap matrices
+  heatmap_matrices <- reactive({
+    req(input1_tables())
+    req(input2_tables())
+    heatmap_for_plot <- matrices_for_plot(
+      input$species,
+      chosen_chr(), 
+      input1_tables(), 
+      input2_tables(), 
+      mode = 'grouped')
+    return(heatmap_for_plot)
+  })
+
   ## Rendering Tables
   output$risk_render1 <- DT::renderDataTable({
-    req(input1_tables())
+    #req(input1_tables())
     return(plot_tab_CAT(chosen_chr(), input1_tables()[1] ))
   },
   options = list(
@@ -165,7 +194,7 @@ app_server <- function(input, output, session) {
   )
 
   output$risk_render2 <- DT::renderDataTable({
-    req(input2_tables())
+    #req(input2_tables())
     return(plot_tab_CAT(chosen_chr(), input2_tables()[[1]]))
   },
   options = list(
@@ -178,10 +207,46 @@ app_server <- function(input, output, session) {
   )
 
   ## Rendering Plots
+  ## Risky Plot
   output$risk_plot <- renderPlot({
-    req(input1_tables())
-    req(input2_tables())
     return(risky_plot(input$species, chosen_chr(), input1_tables()[[1]], input2_tables()[[1]]))
   })
 
+  ## Heatmap Plots
+  output$distance_plot <- renderPlot({
+    req(heatmap_matrices())
+    return(heatmap_plot(heatmap_matrices(), type = 'distance'))
+  })
+  output$grouping_plot <- renderPlot({
+    req(heatmap_matrices())
+    return(heatmap_plot(heatmap_matrices(), type = 'grouped'))
+  })
+  output$sequence_plot <- renderPlot({
+    req(heatmap_matrices())
+    return(heatmap_plot(heatmap_matrices(), type = 'sequence'))
+  })
+  output$location_plot <- renderPlot({
+    req(heatmap_matrices())
+    return(heatmap_plot(heatmap_matrices(), type = 'location'))
+  })
+  
+  ## Group Statistics Plots
+  ## By Breakpoint
+  output$group_by_break1 <- renderPlot({
+    req(input1_tables()[[1]])
+    return(plot_group_stats(input1_tables()[[1]], input$species, 'Risk', "List1" ))
+  })
+  output$group_by_break2 <- renderPlot({
+    req(input2_tables()[[1]])
+    return(plot_group_stats(input2_tables()[[1]], input$species, 'Risk',"List2" ))
+  })
+  ## By Duplications/Insertions
+  output$group_split1 <- renderPlot({
+    req(input1_tables()[[1]])
+    return(plot_group_stats(input1_tables()[[1]], input$species, 'Split',"List1" ))
+  })
+  output$group_split2 <- renderPlot({
+    req(input2_tables()[[1]])
+    return(plot_group_stats(input2_tables()[[1]], input$species, 'Split',"List2" ))
+  })
 }

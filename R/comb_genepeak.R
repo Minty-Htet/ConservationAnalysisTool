@@ -13,23 +13,24 @@ empty_peak <- matrix(nrow = 0, ncol = 0)
 comb_genepeak <- function(species, genome, gene_vec, peak_vec = empty_peak, dist_to_group = 50000, exp_rocr = 500000, threshold = 0.5) {
     dim_peak <- c(NROW(peak_vec), NCOL(peak_vec))
     ## If no peaks provided, just combine with empty peak
-    if (dim_peak[1] == 0 & dim_peak[2] == 0) {
+    if (dim_peak[1] == 0 | dim_peak[2] == 0) {
         chr_rows <- data.table(
-            chromosome = "",
-            start = "",
-            end = "",
-            symbol = "",
-            pmid = "",
-            chromosome_o = "",
-            start_o = "",
-            end_o = ""
+            chromosome = character(),
+            start = numeric(),
+            end = numeric(),
+            symbol = character(),
+            pmid = numeric(),
+            chromosome_o = character(),
+            start_o = numeric(),
+            end_o = numeric(),
+            symbol_o = character()
         )
     }
     ## If the input is a character vector, convert to data frame
     if (typeof(peak_vec) == "character") {
         peak_vec <- as.data.table(peak_vec)
         peak_vec[
-                , c("chromosome", "start", "end") := data.table::tstrsplit(peak_vec, split = "[,\\.[:space:]]+", fixed = FALSE)
+                , c("chromosome", "start", "end") := data.table::tstrsplit(peak_vec, split = "[,\\.[:space:]_]+", fixed = FALSE)
             ][
                 , start := as.numeric(start)
             ][

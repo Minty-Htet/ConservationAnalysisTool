@@ -78,6 +78,36 @@ app_ui <- function() {
           tabPanel(
             "Risky Regions Plot",
             plotOutput('risk_plot', height = "800px")
+          ),
+          tabPanel(
+            'Grouping Heatmaps',
+            fluidRow(
+              column(
+                width = 6,
+                plotOutput('distance_plot'),
+                plotOutput('grouping_plot')
+              ),
+              column(
+                width = 6,
+                plotOutput('sequence_plot'),
+                plotOutput('location_plot')
+              )
+            )
+          ),
+          tabPanel(
+            "Grouping Statistics",
+            fluidRow(
+              column(
+                width = 6,
+                plotOutput('group_by_break1'),
+                plotOutput('group_split1')
+              ),
+              column(
+                width = 6,
+                plotOutput('group_by_break2'),
+                plotOutput('group_split2')
+              )
+            )
           )
         ) # end tabsetPanel
       ) # end mainPanel

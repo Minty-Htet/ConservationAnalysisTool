@@ -87,8 +87,8 @@ conservation_table <- function(matrix, table) {
   ]
   
   ## Build the heatmap matrix
-  heatmap_dt <- matrix[
-    status_dt, on = "group_id"
+  heatmap_dt <- status_dt[
+    matrix, on = "group_id"
     ]
   colnames(status_dt) <- str_replace(colnames(status_dt), "$", "2")
   heatmap_dt <- status_dt[heatmap_dt, on = "group_id2"]

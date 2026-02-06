@@ -12,7 +12,8 @@ run_CAT(
   peaks = NULL,
   disttobreak = 1e+05,
   dist_to_group = 50000,
-  exp_rocr = 5e+05
+  exp_rocr = 5e+05,
+  threshold = 0.5
 )
 }
 \arguments{
