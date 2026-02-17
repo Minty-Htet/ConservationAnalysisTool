@@ -69,7 +69,7 @@ risky_table <- function(long_table, flag_table) {
     long_table[
         , In_Risk := fifelse(symbol %in% hits_symb_vec, TRUE, FALSE)
     ][ 
-        , Risk_status := fifelse(group_id %in% hits_vec, "By Breakpoint", Group_status)
+        , Risk_status := fifelse(group_id %in% hits_vec, "By Breakpoint", 'Not by Breakpoint')
     ]
     return(long_table)
 }
@@ -138,7 +138,7 @@ break_pts <- function(species, final_table, disttobreak) {
   }
   ## Add in disttobreak <distance to breakpoint until the group is in danger zone>
   flag_dt <- as.data.table(flag_dt)[
-    , start := start + disttobreak
+    , start := start - disttobreak
   ][
     , end := end + disttobreak
   ]

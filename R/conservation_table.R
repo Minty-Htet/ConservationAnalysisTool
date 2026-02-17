@@ -8,7 +8,7 @@
 #' @importFrom data.table shift
 #' @keywords internal
 
-conservation_table <- function(matrix, table) {
+conservation_table <- function(matrix, table, split_dis) {
 
   ## Identify singlet groups
   no_singlet <- unique(copy(table)[
@@ -42,7 +42,7 @@ conservation_table <- function(matrix, table) {
   ][ 
     , .(symbol, symbol_o, chromosome_o, start_o, group_id)
   ][
-  order(group_id, start_o)
+    order(group_id, start_o)
   ][ 
     , lag_start := shift(start_o), by = group_id
   ][ 
@@ -52,27 +52,25 @@ conservation_table <- function(matrix, table) {
   ][ 
     , lag_chr := fifelse(is.na(lag_chr), chromosome_o, lag_chr)
   ][
-    , Disrupt := fifelse(abs(lag_start - start_o) <= 500000 & lag_chr == chromosome_o, FALSE, TRUE) , by = group_id
+    , Disrupt := fifelse(abs(lag_start - start_o) <= split_dis & lag_chr == chromosome_o, FALSE, TRUE) , by = group_id
   ][
     , location_disrupted := ifelse(any(Disrupt, na.rm = TRUE), "TRUE", "FALSE"), by = group_id
   ][
     no_singlet, on = .NATURAL
   ][
-    , location_disrupted := fifelse(in_group == FALSE, "Singlet", location_disrupted)
+    , location_disrupted := fifelse(is.na(group_id), NA, location_disrupted)
   ]
 
   ## Summary of group status
   status_dt <- unique(location_dt[
     ortho_dt, on = .NATURAL
   ][ 
-    , Group_status :=  
-     fifelse(one_to_one == "Became Singlet", "Became Singlet",
-     fifelse(one_to_one == "Singlet group", "Singlet group", 
-     fifelse(one_to_one == "Lost", "Lost", 
-     fifelse(location_disrupted == FALSE & (one_to_one != "Singlet group" | one_to_one != "Became Singlet" | one_to_one != "Lost"), "Group Together", 
-     fifelse(location_disrupted == TRUE & (one_to_one != "Singlet group" | one_to_one != "Became Singlet" | one_to_one != "Lost"), "Group Split", NA
-     )))))
-    
+    , Group_status := fifelse(one_to_one == "Lost", 'Lost', 
+    fifelse(
+      location_disrupted == 'Not Applicable', NA,
+    fifelse(
+      location_disrupted == 'TRUE', 'Group Split', 'Group Together'
+    )))
   ][ 
     , .(group_id, one_to_one, location_disrupted, Group_status, in_group)
   ])[

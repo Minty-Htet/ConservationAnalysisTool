@@ -27,7 +27,6 @@
 
 ## Plot for Risk region
 risky_plot <- function(species, chromosome_vec, front_df1, front_df2, background = mouse_to_human_genes) {
-  species = 'Mmusculus'
   back_df <- copy(mouse_to_human_genes)
   back_df <- as.data.table(back_df)[
     , .(mmusculus_gene_name, hsapiens_gene_name)
@@ -89,9 +88,12 @@ risky_plot <- function(species, chromosome_vec, front_df1, front_df2, background
   up_df1 <- front_df1[
     , .(group_id, symbol, chromosome, start, end, chromosome_o, start_o, end_o, In_Risk, Risk_status, Group_status)
   ][ 
-    , status := fifelse(In_Risk == TRUE, 'In Risk',
-        fifelse(In_Risk == FALSE & Risk_status == 'By Breakpoint', 'Group in Risk', 
-        fifelse(Risk_status == 'Group Split', 'Group Split', 'Not in Risk')))
+    , status := fifelse(Risk_status == "By Breakpoint" & Group_status == "Group Split", "By Breakpoint and Split",
+    fifelse(Risk_status == "By Breakpoint" & Group_status == "Group Together", "By Breakpoint",
+    fifelse(Risk_status == "Not by Breakpoint" & Group_status == "Group Split", "Group Split",
+    "Group Together")))
+  ][
+    , status := fifelse(is.na(status), "Not Applicable", status)
   ][
     cumulative, on = 'chromosome'
   ][
@@ -100,17 +102,16 @@ risky_plot <- function(species, chromosome_vec, front_df1, front_df2, background
     , mid_o := (start_o + end_o)/2
   ][ 
     , type := fifelse(grepl("chr", symbol), 0.75, 1)
-  ][ 
-    , show := fifelse(is.na(status), 0.75, 1)
   ][
     , type_spacing := fifelse(grepl("chr", symbol), 0.9, 1)
   ]
   down_df1 <- front_df2[
     , .(group_id, symbol, chromosome, start, end, chromosome_o, start_o, end_o, In_Risk, Risk_status, Group_status)
   ][ 
-    , status := fifelse(In_Risk == TRUE, 'In Risk',
-        fifelse(In_Risk == FALSE & Risk_status == 'By Breakpoint', 'Group in Risk', 
-        fifelse(Risk_status == 'Group Split', 'Group Split', 'Not in Risk')))
+    , status := fifelse(Risk_status == "By Breakpoint" & Group_status == "Group Split", "By Breakpoint and Split",
+    fifelse(Risk_status == "By Breakpoint" & Group_status == "Group Together", "By Breakpoint",
+    fifelse(Risk_status == "Not by Breakpoint" & Group_status == "Group Split", "Group Split",
+    "Group Together")))
   ][
     cumulative, on = 'chromosome'
   ][
@@ -119,8 +120,6 @@ risky_plot <- function(species, chromosome_vec, front_df1, front_df2, background
     , mid_o := (start_o + end_o)/2
   ][ 
     , type := fifelse(grepl("chr", symbol), 0.75, 1)
-  ][ 
-    , show := fifelse(is.na(status), 0.75, 1)
   ][
     , type_spacing := fifelse(grepl("chr", symbol), 0.9, 1)
   ]
@@ -128,8 +127,38 @@ risky_plot <- function(species, chromosome_vec, front_df1, front_df2, background
   fil_back <- back_df[chromosome %in% chromosome_vec & !grepl("chr", symbol)]
   up_df1 <- up_df1[chromosome %in% chromosome_vec]
   down_df1 <- down_df1[chromosome %in% chromosome_vec]
+
+  ## For labels of groups by breakpoints
+  up_label <- up_df1[
+    !is.na(group_id) & !is.na(chromosome_o) & (Risk_status == 'By Breakpoint') 
+  ][
+    , overall := mean(mid), by = .(group_id)
+  ][
+    , overall_o := mean(mid_o), by = .(group_id)
+  ][ 
+    , .(group_id, chromosome, overall, overall_o)
+  ]
+  up_label <- unique(up_label)
+  down_label <- down_df1[
+    !is.na(group_id) & !is.na(chromosome_o) & (Risk_status == 'By Breakpoint')
+  ][
+    , overall := mean(mid), by = .(group_id)
+  ][
+    , overall_o := mean(mid_o), by = .(group_id)
+  ][ 
+    , .(group_id, chromosome, overall, overall_o)
+  ]
+  down_label <- unique(down_label)
+
   noto_space <- max(fil_back$mid_o) * 1.3
   yoto_space <- max(fil_back$mid_o) * 0.1
+
+  ## Change when more than one species.
+  if (species == "Mmusculus") {
+    ortholog_species = "Hsapiens"
+  } else {
+    ortholog_species = "Mmusculus"
+  }
   
   risk_plot <- ggplot(data = fil_back) +
     geom_segment(
@@ -141,25 +170,44 @@ risky_plot <- function(species, chromosome_vec, front_df1, front_df2, background
       alpha = 1
       ) +
     labs(
-      x = paste(species, "Gene Midpoint Position"),
-      y = "Ortholog Midpoint Position",
+      x = paste(species, "Gene Midpoint Position (bp)"),
+      y = paste(ortholog_species, "Midpoint Position (bp)"),
       color = "Ortholog Chromosome"
     ) +
     scale_color_manual(values=matching_colors) +
     new_scale_color() +
     geom_segment(
       data = up_df1[!is.na(chromosome_o)],
-      aes(x = mid, xend = mid, yend = mid_o + yoto_space, y = mid_o + 2 * yoto_space * type, color = status, alpha = show),
+      aes(x = mid, xend = mid, yend = mid_o + yoto_space, y = mid_o + 2 * yoto_space * type, color = status),
       arrow = arrow(length = unit(0.1, "cm"), type = "closed"), 
       linewidth = 0.2) + # for one to one orthos
-    geom_point(data = up_df1[is.na(chromosome_o)], aes(x = mid, y = noto_space/type_spacing , color = status, alpha = show), shape = 6) + # for no orthos
+    geom_point(data = up_df1[is.na(chromosome_o)], aes(x = mid, y = noto_space/type_spacing , color = status), shape = 6) + # for no orthos
+    geom_text(data = up_label, aes(x = overall, y = overall_o + 2 * yoto_space, label = group_id)) +
     geom_segment(
       data = down_df1[!is.na(chromosome_o)], 
-      aes(x = mid, xend = mid, yend = -mid_o - yoto_space, y = -mid_o - 2 * yoto_space * type, color = status, alpha = show),
+      aes(x = mid, xend = mid, yend = -mid_o - yoto_space, y = -mid_o - 2 * yoto_space * type, color = status),
       arrow = arrow(length = unit(0.1, "cm"), type = "closed"), 
       linewidth = 0.2) +
-    geom_point(data = down_df1[is.na(chromosome_o)], aes(x = mid, y = -noto_space/type_spacing, color = status, alpha = show), shape = 2) +
-    scale_color_manual(values=c("In Risk" = "#FF5733", "Not in Risk" = "blue", "Group in Risk" = "#E68613", "Group Split" = "darkorchid2")) +
+    geom_point(data = down_df1[is.na(chromosome_o)], aes(x = mid, y = -noto_space/type_spacing, color = status), shape = 2) +
+    geom_text(data = down_label, aes(x = overall, y = -overall_o - 2 * yoto_space, label = group_id)) +
+    geom_point(
+    data = data.frame(
+      x = NA, y = NA,
+      flag = c('Has ortholog', 'No ortholog')
+    ),
+    aes(x = x, y = y, shape = flag),
+    size = 4
+    ) +
+    scale_color_manual(values=c(
+      "By Breakpoint and Split" = "#FF5733",
+      "By Breakpoint" = "#E68613", 
+      "Group Split" = "darkorchid2",
+      'Group Together' = 'blue'
+      )) +
+    scale_shape_manual(
+      name   = "One to One ortholog",
+      values = c("Has ortholog" = 17, "No ortholog" =  2)
+    ) +
     guides(alpha = "none")
   return(risk_plot)
 }
@@ -168,19 +216,19 @@ risky_plot <- function(species, chromosome_vec, front_df1, front_df2, background
 get_order_pluspeaks <- function(cat_obj1, cat_obj2, mode = 'all') {
     if (mode == 'grouped') {
     gene_order <- unique(rbind(
-        cat_obj1[[1]][!is.na(group_id)][ , .(symbol, chromosome, start)],
-        cat_obj2[[1]][!is.na(group_id)][, .(symbol, chromosome, start)]
+        cat_obj1[!is.na(group_id)][ , .(symbol, chromosome, start)],
+        cat_obj2[!is.na(group_id)][, .(symbol, chromosome, start)]
     ))
     }
     if (mode == 'all') {
     gene_order <- unique(rbind(
-        cat_obj1[[1]][ , .(symbol, chromosome, start)],
-        cat_obj2[[1]][, .(symbol, chromosome, start)]
+        cat_obj1[ , .(symbol, chromosome, start)],
+        cat_obj2[, .(symbol, chromosome, start)]
     ))
     }
     
     gene_order <- gene_order[ 
-        order(start)
+        order(chromosome,start)
     ]
     gene_order[
         , coord := 1
@@ -205,7 +253,7 @@ get_order_pluspeaks <- function(cat_obj1, cat_obj2, mode = 'all') {
 ## Plot for Groupings
 ## Prepare the heatmap matrices
 matrices_for_plot <- function(species, chromosome_vec, cat_obj1, cat_obj2, mode = 'all') {
-  order_dt <- get_order_pluspeaks(cat_obj1, cat_obj2, mode)[
+  order_dt <- get_order_pluspeaks(cat_obj1[[1]], cat_obj2[[1]], mode)[
     , .(symbol,diff,coord)
   ]
   if (mode == 'all') {
@@ -223,7 +271,7 @@ matrices_for_plot <- function(species, chromosome_vec, cat_obj1, cat_obj2, mode 
   ][
     (chromosome %in% chromosome_vec) & (chromosome2 %in% chromosome_vec)
   ][
-    , .(symbol, symbol2, symbol_o, distance, grouped, Group_status, one_to_one, group_id, group_id2)
+    , .(symbol, symbol2, symbol_o, distance, grouped, Group_status, one_to_one, group_id, group_id2, chromosome)
   ]
   in_group_df <- order_dt[ 
    in_group_df, on = .(symbol)
@@ -239,7 +287,7 @@ matrices_for_plot <- function(species, chromosome_vec, cat_obj1, cat_obj2, mode 
   ][ 
     , distance := abs(distance)
   ][
-    , .(symbol,symbol2,coord,diff,i.coord,i.diff,distance, group_id, group_id2, grouped, Group_status, one_to_one)
+    , .(symbol,symbol2,coord,diff,i.coord,i.diff,distance, group_id, group_id2, grouped, Group_status, one_to_one, chromosome)
   ][
     order(coord, i.coord)
   ][
@@ -255,6 +303,8 @@ matrices_for_plot <- function(species, chromosome_vec, cat_obj1, cat_obj2, mode 
     grouped = grouped,
     Group_status = Group_status,
     one_to_one = one_to_one,
+    group_id = group_id,
+    chromosome = chromosome,
     id = paste(coord, i.coord, "A", sep = "_")
     ), by = .(coord, i.coord)
   ]
@@ -266,6 +316,8 @@ matrices_for_plot <- function(species, chromosome_vec, cat_obj1, cat_obj2, mode 
     x = c(coord - 0.5*diff, coord + 0.5*diff, coord + 0.5*diff, coord - 0.5*diff),
     y = c(i.coord - 0.5*i.diff, i.coord - 0.5*i.diff, i.coord + 0.5*i.diff, i.coord + 0.5*i.diff),
     distance = distance,
+    group_id = group_id,
+    group_id2 = group_id2,
     id = paste(coord, i.coord, "A", sep = "_")
     ), by = .(coord, i.coord)
   ]
@@ -345,7 +397,7 @@ matrices_for_plot <- function(species, chromosome_vec, cat_obj1, cat_obj2, mode 
   ][
     chromosome == chromosome2
   ][
-    , .(symbol, symbol2, symbol_o, distance, grouped, Group_status, one_to_one, group_id, group_id2)
+    , .(symbol, symbol2, symbol_o, distance, grouped, Group_status, one_to_one, group_id, group_id2, chromosome)
   ]
   in_group_df2 <- order_dt[ 
    in_group_df2, on = .(symbol)
@@ -360,7 +412,7 @@ matrices_for_plot <- function(species, chromosome_vec, cat_obj1, cat_obj2, mode 
   ][ 
     , distance := abs(distance)
   ][
-    , .(symbol,symbol2,coord,diff,i.coord,i.diff,distance, group_id, group_id2, grouped, Group_status, one_to_one)
+    , .(symbol,symbol2,coord,diff,i.coord,i.diff,distance, group_id, group_id2, grouped, Group_status, one_to_one, chromosome)
   ][
     order(coord, i.coord)
   ][
@@ -376,6 +428,8 @@ matrices_for_plot <- function(species, chromosome_vec, cat_obj1, cat_obj2, mode 
     grouped = grouped,
     Group_status = Group_status,
     one_to_one = one_to_one,
+    group_id = group_id, 
+    chromosome = chromosome,
     id = paste(coord, i.coord, "A", sep = "_")
     ), by = .(coord, i.coord)
   ]
@@ -386,6 +440,8 @@ matrices_for_plot <- function(species, chromosome_vec, cat_obj1, cat_obj2, mode 
     x = c(coord - 0.5*diff, coord + 0.5*diff, coord + 0.5*diff, coord - 0.5*diff),
     y = c(i.coord - 0.5*i.diff, i.coord - 0.5*i.diff, i.coord + 0.5*i.diff, i.coord + 0.5*i.diff),
     distance = distance,
+    group_id = group_id2, ## Note that the group_id here should be group_id2. We want the lower squares.
+    group_id2 = group_id,
     id = paste(coord, i.coord, "A", sep = "_")
     ), by = .(coord, i.coord)
   ]
@@ -459,69 +515,202 @@ matrices_for_plot <- function(species, chromosome_vec, cat_obj1, cat_obj2, mode 
     id = group_id
     ), by = .(group_id)
   ]
-
-  return(list(in_group_diag, in_group_diag2, upper_blocks, lower_blocks, upper_group, lower_group, in_group_df, in_group_df2))
+  return(list(in_group_diag, in_group_diag2, upper_blocks, lower_blocks, upper_group, lower_group))
 }
 
 ## Plot for Distance
-heatmap_plot <- function(list_matrices, type = 'all') {
-  #list_matrices <- matrices_for_plot(species, chromosome_vec, cat_obj1, cat_obj2, mode)
-  if (type == 'distance') {
-    plot <- ggplot() +
-    geom_polygon(data = list_matrices[[1]], aes(x = x ,y = y, group = id, fill = log10(abs(distance) + 1))) +
-    geom_polygon(data = list_matrices[[2]], aes(x = x, y = y, group = id, fill = log10(abs(distance) + 1))) +
-    geom_polygon(data = list_matrices[[3]], aes(x = x, y = y, group = id, fill = log10(abs(distance) + 1))) +
-    geom_polygon(data = list_matrices[[4]], aes(x = x, y = y, group = id, fill = log10(abs(distance) + 1))) +
-    geom_polygon(data = list_matrices[[5]], aes(x = x, y = y, group = id, color = grouped), fill = NA, linewidth = 0.5) +
-    geom_polygon(data = list_matrices[[6]], aes(x = x, y = y, group = id, color = grouped), fill = NA, linewidth = 0.5) +
-    scale_fill_gradient(low = "navyblue", high = "lightgoldenrodyellow") +
-    coord_fixed() +
-    theme(legend.position = 'bottom') +
-    labs(
+heatmap_plot <- function(list_matrices, type, mode = 'interactive', bounds = c()) {
+  if (mode == 'interactive') {
+    if (type == 'distance') {
+      plot <- ggplot() +
+      geom_polygon(data = list_matrices[[1]], aes(x = x ,y = y, group = id, fill = log10(abs(distance) + 1))) +
+      geom_polygon(data = list_matrices[[2]], aes(x = x, y = y, group = id, fill = log10(abs(distance) + 1))) +
+      geom_polygon(data = list_matrices[[3]], aes(x = x, y = y, group = id, fill = log10(abs(distance) + 1))) +
+      geom_polygon(data = list_matrices[[4]], aes(x = x, y = y, group = id, fill = log10(abs(distance) + 1))) +
+      geom_polygon(data = list_matrices[[5]], aes(x = x, y = y, group = id, color = grouped), fill = NA, linewidth = 0.5) +
+      geom_polygon(data = list_matrices[[6]], aes(x = x, y = y, group = id, color = grouped), fill = NA, linewidth = 0.5) +
+      scale_fill_gradient(name = 'log10 of Distance', low = "navyblue", high = "lightgoldenrodyellow") +
+      coord_fixed() +
+      theme(legend.position = 'bottom') +
+      labs(
         x = "List2",   
         y = "List1" 
-    )
-  }
-  if (type == 'grouped') {
-    plot <- ggplot() +
-    geom_polygon(data = list_matrices[[1]], aes(x = x ,y = y, group = id, fill = grouped)) +
-    geom_polygon(data = list_matrices[[2]], aes(x = x, y = y, group = id, fill = grouped)) +
-    geom_polygon(data = list_matrices[[5]], aes(x = x, y = y, group = id, fill = grouped), alpha = 0.5, linewidth = 0.5) +
-    geom_polygon(data = list_matrices[[6]], aes(x = x, y = y, group = id, fill = grouped), alpha = 0.5, linewidth = 0.5) +
-    coord_fixed() +
-    theme(legend.position = 'bottom') +
-    labs(
+      )
+    }
+    if (type == 'grouped') {
+      plot <- ggplot() +
+      geom_polygon(data = list_matrices[[1]], aes(x = x ,y = y, group = id, fill = grouped)) +
+      geom_polygon(data = list_matrices[[2]], aes(x = x, y = y, group = id, fill = grouped)) +
+      geom_polygon(data = list_matrices[[5]], aes(x = x, y = y, group = id, fill = grouped), alpha = 0.5, linewidth = 0.5) +
+      geom_polygon(data = list_matrices[[6]], aes(x = x, y = y, group = id, fill = grouped), alpha = 0.5, linewidth = 0.5) +
+      coord_fixed() +
+      theme(legend.position = 'bottom') +
+      labs(
         x = "List2",   
         y = "List1" 
-    )
-  }
-  if (type == 'sequence') {
-    plot <- ggplot() +
-    geom_polygon(data = list_matrices[[1]], aes(x = x ,y = y, group = id, fill = one_to_one), color = 'black', linewidth = 0.1) +
-    geom_polygon(data = list_matrices[[2]], aes(x = x, y = y, group = id, fill = one_to_one), color = 'black', linewidth = 0.1) +
-    geom_polygon(data = list_matrices[[5]], aes(x = x, y = y, group = id, fill = one_to_one), alpha = 0.5) +
-    geom_polygon(data = list_matrices[[6]], aes(x = x, y = y, group = id, fill = one_to_one), alpha = 0.5) +
-    coord_fixed() +
-    theme(legend.position = 'bottom') +
-    labs(
+      )
+    }
+    if (type == 'sequence') {
+      plot <- ggplot() +
+      geom_polygon(data = list_matrices[[1]], aes(x = x ,y = y, group = id, fill = one_to_one), color = 'black', linewidth = 0.1) +
+      geom_polygon(data = list_matrices[[2]], aes(x = x, y = y, group = id, fill = one_to_one), color = 'black', linewidth = 0.1) +
+      geom_polygon(data = list_matrices[[5]], aes(x = x, y = y, group = id, fill = one_to_one), alpha = 0.5) +
+      geom_polygon(data = list_matrices[[6]], aes(x = x, y = y, group = id, fill = one_to_one), alpha = 0.5) +
+      coord_fixed() +
+      theme(legend.position = 'bottom') +
+      labs(
         x = "List2",   
         y = "List1" 
-    )
-  }
-  if (type == 'location') {
-    plot <- ggplot() +
-    geom_polygon(data = list_matrices[[1]], aes(x = x ,y = y, group = id, fill = Group_status), color = "black", linewidth = 0.1) +
-    geom_polygon(data = list_matrices[[2]], aes(x = x, y = y, group = id, fill = Group_status), color = "black", linewidth = 0.1) +
-    geom_polygon(data = list_matrices[[5]], aes(x = x, y = y, group = id, fill = Group_status), alpha = 0.5) +
-    geom_polygon(data = list_matrices[[6]], aes(x = x, y = y, group = id, fill = Group_status), alpha = 0.5) +
-    coord_fixed() +
-    theme(legend.position = 'bottom') +
-    labs(
+      )
+    }
+    if (type == 'location') {
+      plot <- ggplot() +
+      geom_polygon(data = list_matrices[[1]], aes(x = x ,y = y, group = id, fill = Group_status), color = "black", linewidth = 0.1) +
+      geom_polygon(data = list_matrices[[2]], aes(x = x, y = y, group = id, fill = Group_status), color = "black", linewidth = 0.1) +
+      geom_polygon(data = list_matrices[[5]], aes(x = x, y = y, group = id, fill = Group_status), alpha = 0.5) +
+      geom_polygon(data = list_matrices[[6]], aes(x = x, y = y, group = id, fill = Group_status), alpha = 0.5) +
+      coord_fixed() +
+      theme(legend.position = 'bottom') +
+      labs(
         x = "List2",   
         y = "List1" 
-    )
+      )
+    }
+    return(plot)
   }
-  return(plot)
+  if (mode == 'shiny') {
+    # return(list(in_group_diag, in_group_diag2, upper_blocks, lower_blocks, upper_group, lower_group, in_group_df, in_group_df2))
+    # return(c(new_group1_min, new_group1_max, new_group2_min, new_group2_max))
+    side1 <- list_matrices[[1]][
+      group_id >= bounds[1] & group_id <= bounds[2]
+    ]
+    side2 <- list_matrices[[2]][
+      group_id >= bounds[3] & group_id <= bounds[4]
+    ]
+    both_sides <- rbind(side1,side2)[, .(x, y, chromosome)][
+      , lower_x := min(x), by = .(chromosome)
+    ][
+      , upper_x := max(x), by = .(chromosome)
+    ]
+    chrom_outline <- unique(both_sides)[
+    , .(
+      x = c(lower_x, lower_x, upper_x, upper_x),
+      y = c(lower_x, upper_x, upper_x, lower_x),
+      chromosome = chromosome,
+      by = .(chromosome)
+      )
+    ]
+    if (type == 'distance') {
+      plot <- ggplot() +
+      geom_polygon(data = list_matrices[[1]][
+          group_id >= bounds[1] & group_id <= bounds[2]
+        ], aes(x = x ,y = y, group = id, fill = log10(abs(distance) + 1))) +
+      geom_polygon(data = list_matrices[[2]][
+          group_id >= bounds[3] & group_id <= bounds[4]
+        ], aes(x = x, y = y, group = id, fill = log10(abs(distance) + 1))) +
+      geom_polygon(data = list_matrices[[3]][
+          group_id >= bounds[1] & group_id <= bounds[2] & group_id2 >= bounds[1] & group_id2 <= bounds[2]
+        ], aes(x = x, y = y, group = id, fill = log10(abs(distance) + 1))) +
+      geom_polygon(data = list_matrices[[4]][
+          group_id >= bounds[3] & group_id <= bounds[4] & group_id2 >= bounds[3] & group_id2 <= bounds[4]
+        ], aes(x = x, y = y, group = id, fill = log10(abs(distance) + 1))) +
+      geom_polygon(data = list_matrices[[5]][
+          id >= bounds[1] & id <= bounds[2]
+        ], aes(x = x, y = y, group = id, color = grouped), fill = NA, linewidth = 0.5) +
+      geom_polygon(data = list_matrices[[6]][
+          id >= bounds[3] & id <= bounds[4]
+        ], aes(x = x, y = y, group = id, color = grouped), fill = NA, linewidth = 0.5) +
+      geom_polygon(data = chrom_outline, aes(x = x, y = y, group = chromosome), color = 'black', fill = NA, linewidth = 0.5) +
+      scale_fill_gradient(name = 'log10 of Distance', low = "navyblue", high = "lightgoldenrodyellow") +
+      scale_color_manual(name = 'Group Status', 
+        values = c('Grouped' = '#F8766D', 'Singlet group' = '#00BFC4'),
+        labels = c('Grouped' = 'Multi-gene group', 'Singlet group' = 'Singlet group')
+        ) +
+      coord_fixed() +
+      theme(legend.position = 'bottom') +
+      labs(
+        x = "List2",   
+        y = "List1",
+        fill = 'Log10 of distance',
+        color = 'Group Status'
+      )
+      #return(list_matrices[[4]][
+      #    group_id >= bounds[3] & group_id <= bounds[4]
+      #  ])
+    }
+    if (type == 'grouped') {
+      plot <- ggplot() +
+      geom_polygon(data = list_matrices[[1]][
+          group_id >= bounds[1] & group_id <= bounds[2]
+        ], aes(x = x ,y = y, group = id, fill = grouped)) +
+      geom_polygon(data = list_matrices[[2]][
+          group_id >= bounds[3] & group_id <= bounds[4]
+        ], aes(x = x, y = y, group = id, fill = grouped)) +
+      geom_polygon(data = list_matrices[[5]][
+          id >= bounds[1] & id <= bounds[2]
+        ], aes(x = x, y = y, group = id, fill = grouped), alpha = 0.5, linewidth = 0.5) +
+      geom_polygon(data = list_matrices[[6]][
+          id >= bounds[3] & id <= bounds[4]
+        ], aes(x = x, y = y, group = id, fill = grouped), alpha = 0.5, linewidth = 0.5) +
+      geom_polygon(data = chrom_outline, aes(x = x, y = y, group = chromosome), color = 'black', fill = NA, linewidth = 0.5) +
+      scale_fill_manual(name = 'Group Status', 
+      values = c('Grouped' = '#F8766D', 'Singlet group' = '#00BFC4'),
+      labels = c('Grouped' = 'Multi-gene group', 'Singlet group' = 'Singlet group')) +
+      coord_fixed() +
+      theme(legend.position = 'bottom') +
+      labs(
+        x = "List2",   
+        y = "List1" 
+      )
+    }
+    if (type == 'sequence') {
+      plot <- ggplot() +
+      geom_polygon(data = list_matrices[[1]][
+          group_id >= bounds[1] & group_id <= bounds[2]
+        ], aes(x = x ,y = y, group = id, fill = one_to_one), color = 'black', linewidth = 0.1) +
+      geom_polygon(data = list_matrices[[2]][
+          group_id >= bounds[3] & group_id <= bounds[4]
+        ], aes(x = x, y = y, group = id, fill = one_to_one), color = 'black', linewidth = 0.1) +
+      geom_polygon(data = list_matrices[[5]][
+          id >= bounds[1] & id <= bounds[2]
+        ], aes(x = x, y = y, group = id, fill = one_to_one), alpha = 0.5) +
+      geom_polygon(data = list_matrices[[6]][
+          id >= bounds[3] & id <= bounds[4]
+        ], aes(x = x, y = y, group = id, fill = one_to_one), alpha = 0.5) +
+      geom_polygon(data = chrom_outline, aes(x = x, y = y, group = chromosome), color = 'black', fill = NA, linewidth = 0.5) +
+      coord_fixed() +
+      theme(legend.position = 'bottom') +
+      labs(
+        x = "List2",   
+        y = "List1",
+        fill = 'Sequence Conservation Status'
+      )
+    }
+    if (type == 'location') {
+      plot <- ggplot() +
+      geom_polygon(data = list_matrices[[1]][
+          group_id >= bounds[1] & group_id <= bounds[2]
+        ], aes(x = x ,y = y, group = id, fill = Group_status), color = "black", linewidth = 0.1) +
+      geom_polygon(data = list_matrices[[2]][
+          group_id >= bounds[3] & group_id <= bounds[4]
+        ], aes(x = x, y = y, group = id, fill = Group_status), color = "black", linewidth = 0.1) +
+      geom_polygon(data = list_matrices[[5]][
+          id >= bounds[1] & id <= bounds[2]
+        ], aes(x = x, y = y, group = id, fill = Group_status), alpha = 0.5) +
+      geom_polygon(data = list_matrices[[6]][
+          id >= bounds[3] & id <= bounds[4]
+        ], aes(x = x, y = y, group = id, fill = Group_status), alpha = 0.5) +
+      geom_polygon(data = chrom_outline, aes(x = x, y = y, group = chromosome), color = 'black', fill = NA, linewidth = 0.5) +
+      coord_fixed() +
+      theme(legend.position = 'bottom') +
+      labs(
+        x = "List2",   
+        y = "List1",
+        fill = 'Location Conservation Status'
+      )
+    }
+    return(plot)
+  }
 }
 
 ## Plot for Group Statistics
@@ -570,6 +759,8 @@ plot_group_stats <- function(input_table, species, type, label) {
             , Count := Risk_count
         ][ 
             , Risk_count := NULL
+        ][ 
+          , sep := fifelse(Status == 'By Breakpoint', 0.25, -0.25)
         ]
         phrase <- "\nGroups by Breakpoint"
     } 
@@ -595,6 +786,8 @@ plot_group_stats <- function(input_table, species, type, label) {
             , Count := Split_count
         ][ 
             , Split_count := NULL
+        ][ 
+          , sep := fifelse(Status == 'Group Split', 0.25, -0.25)
         ]
         phrase <- "\nGroups by Split"
     }
@@ -602,7 +795,7 @@ plot_group_stats <- function(input_table, species, type, label) {
     plot <- ggplot()  +
     geom_rect(
         data = summary_table,
-        aes(xmin = one_to_one_x - 0.5, xmax = one_to_one_x + 0.5, ymin = y_base, ymax = y_cumulative, fill = Status)
+        aes(xmin = one_to_one_x - 0.375, xmax = one_to_one_x + 0.375, ymin = y_base, ymax = y_cumulative, fill = Status)
     ) + 
     geom_text(
         data = unique(summary_table[,.(one_to_one_x, Group_count)]),
@@ -615,7 +808,7 @@ plot_group_stats <- function(input_table, species, type, label) {
     geom_text(
         data = summary_table,
         aes(
-            x = one_to_one_x - 0.25,
+            x = one_to_one_x + sep,
             y = y_cumulative,
            label = ifelse(how_many == 1, NA, Count)
         )

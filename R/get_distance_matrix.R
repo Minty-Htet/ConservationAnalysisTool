@@ -19,7 +19,7 @@ merge_df <- function(species, input_long) {
     result <- merge(result, all_start_end, by.x = "id2", by.y = "id", all.x = TRUE, suffixes = c("", ".id2"))
     
   } else {
-    all_start_end <- as.data.table(human_all_start_end)
+    all_start_end <- as.data.table(human_all_startend)
     setkey(all_start_end, id)    
     result <- merge(input_long, all_start_end, by = "id", all.x = TRUE)
     result <- as.data.table(result)
@@ -33,7 +33,7 @@ get_distance_matrix <- function(species, genes, peaks) {
     all_start_end <- as.data.table(mouse_all_startend)
     all_start_end[symbol %in% genes][,.(chromosome,start,end,symbol)]
   } else {
-    all_start_end <- as.data.table(human_all_start_end)
+    all_start_end <- as.data.table(human_all_startend)
     all_start_end[symbol %in% genes][,.(chromosome,start,end,symbol)]
   }
   chosen_genes <- rbind(chosen_genes, peaks[, .(chromosome,start,end,symbol)])[
@@ -53,7 +53,7 @@ get_distance_matrix <- function(species, genes, peaks) {
     all_start_end <- mouse_all_startend[, .(chromosome,start,end,symbol)]
   } 
   if (species == "Hsapiens") {
-    all_start_end <- human_all_start_end[, .(chromosome,start,end,symbol)]
+    all_start_end <- human_all_startend[, .(chromosome,start,end,symbol)]
   }
   matrix_long <- all_start_end[
     long_matrix_all, on = .(symbol = symbol)

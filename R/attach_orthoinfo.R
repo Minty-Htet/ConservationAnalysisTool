@@ -10,7 +10,7 @@ attach_orthoinfo <- function(distance_matrix, peaks, species) {
   ## Get the ortholog info of known genes
   if (species == "Mmusculus") {
     cols <- c("mmusculus_gene_name", "hsapiens_gene_name")
-    ortho1 <- copy(mouse_to_human_genes)[, cols]
+    ortho1 <- copy(mouse_to_human_genes)[, .SD, .SDcols = cols]
     setnames(ortho1, cols, c("symbol", "symbol_o"))
     to_join <- human_all_startend[, .(symbol, chromosome, start, end)]
     colnames(to_join) <- paste(colnames(to_join), "o", sep = "_")
@@ -19,7 +19,7 @@ attach_orthoinfo <- function(distance_matrix, peaks, species) {
     ]
   } else {
     cols <- c("hsapiens_gene_name", "mmusculus_gene_name")
-    ortho1 <- copy(mouse_to_human_genes)[, cols]
+    ortho1 <- copy(mouse_to_human_genes)[, .SD, .SDcols = cols]
     setnames(ortho1, cols, c("symbol", "symbol_o"))
     to_join <- mouse_all_startend[, .(symbol, chromosome, start, end)]
     colnames(to_join) <- paste(colnames(to_join), "o", sep = "_")
