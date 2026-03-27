@@ -195,26 +195,30 @@ app_ui_oneway <- function() {
                 width = 4,
                 tags$div(
                   h4("Distance Heatmap"),
-                  plotOutput('distance_plot', hover = hoverOpts(id = 'heatmap_hover', delay = 100))
+                  plotOutput('distance_plot', click = clickOpts(id = 'heatmap_click'))
                 ),
                 tags$div(
                   h4('Grouping Status'),
-                  plotOutput('grouping_plot', hover = hoverOpts(id = 'heatmap_hover', delay = 100))
+                  plotOutput('grouping_plot', click = clickOpts(id = 'heatmap_click'))
                 )
               ),
               column(
                 width = 4,
                 tags$div(
                   h4('Sequence Conservation Status'),
-                  plotOutput('sequence_plot', hover = hoverOpts(id = 'heatmap_hover', delay = 100))
+                  plotOutput('sequence_plot', click = clickOpts(id = 'heatmap_click'))
                 ),
                 tags$div(
                   h4('Location Conservation Status'),
-                  plotOutput('location_plot', hover = hoverOpts(id = 'heatmap_hover', delay = 100))
+                  plotOutput('location_plot', click = clickOpts(id = 'heatmap_click'))
                 )
               ),
               column(
                 width = 4,
+                tags$div(
+                  h4("Click on the heatmaps to see group IDs"),
+                  DT::DTOutput('hovered_groups_table')
+                ),
                 DT::DTOutput('position_groups_table'),
                 sliderInput(
                   inputId = "pos_range",
@@ -223,10 +227,6 @@ app_ui_oneway <- function() {
                   max     = 100,
                   value   = c(1, 20),   # default range
                   step    = 1
-                ),
-                tags$div(
-                  h4("Hover over the heatmaps to see group IDs"),
-                  DT::DTOutput('hovered_groups_table')
                 )
               )
             )

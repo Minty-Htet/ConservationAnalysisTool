@@ -203,16 +203,18 @@ app_server_oneway <- function(input, output, session) {
   
   ## Position and Group ID
   output$position_groups_table <- DT::renderDT({
-    pos_groups <- position_groups()[
+    pos_groups <- copy(position_groups())[
       , List1_group := as.character(List1_group)
     ]
     return(
       DT::datatable(pos_groups, 
       rownames = FALSE, options = list(
         dom = 't',
-        scrollX = TRUE,    # horizontal scrolling
-        scrollY = "400px", # vertical scrolling
-        paging = FALSE # disables pagination if you want scroll only,
+        #scrollX = TRUE,      
+        scrollY = "200px", 
+        #scrollCollapse = TRUE,
+        paging = FALSE       
+        #pageLength = 5       
         ),
         filter = "top")
     )
@@ -265,12 +267,12 @@ app_server_oneway <- function(input, output, session) {
     return(plot_group_stats(input1_tables()[[1]], input$species, 'Split',"List1", chosen_chr(), input$group_gene_mode))
   })
 
-  ## Hover over heatmaps to show group IDs
+  ## Click on heatmaps to show group IDs
   hovered_groups <- reactive({
-    req(input$heatmap_hover)
+    req(input$heatmap_click)
     req(heatmap_matrices())
     
-    hover <- input$heatmap_hover
+    click <- input$heatmap_click
     
     # Get upper_group (list_matrices[[5]]) and lower_group (list_matrices[[6]])
     upper_groups <- heatmap_matrices()[[5]][, source := "Upper"]
@@ -291,14 +293,14 @@ app_server_oneway <- function(input, output, session) {
       ]
     all_groups <- unique(all_groups)
     
-    # Find groups where hover coordinates fall within the polygon
+    # Find groups where click coordinates fall within the polygon
     # The x and y values in the data frame define polygons
-    hover_x <- hover$x
-    hover_y <- hover$y
+    click_x <- click$x
+    click_y <- click$y
 
     all_groups <- all_groups[
-      (hover_x >= min_x & hover_x <= max_x) &
-      (hover_y >= min_y & hover_y <= max_y)
+      (click_x >= min_x & click_x <= max_x) &
+      (click_y >= min_y & click_y <= max_y)
     ]
     display_table <- position_groups()[List1_group %in% all_groups[source == "Upper"]$id]
     return(display_table)
@@ -312,8 +314,9 @@ app_server_oneway <- function(input, output, session) {
                   rownames = FALSE,
                   options = list(
                     dom = 't',
-                    scrollX = TRUE,    # horizontal scrolling
-                    paging = TRUE
+                    scrollX = TRUE,
+                    scrollY = "400px",
+                    paging = FALSE
                   ))
     )
   })
