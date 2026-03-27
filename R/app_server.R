@@ -15,7 +15,7 @@ app_server <- function(input, output, session) {
   # Choose chromosomes of interest
   chosen_chr <- reactive({
     if ("All" %in% input$chromosome) {
-      if (input$species == "Mmusculus") chr_order[-length(chr_order)] else hs_chr_order[-length(hs_chr_order)]
+      if (input$species == "Mmusculus") chr_order else hs_chr_order
     } else {
       input$chromosome
     }
@@ -335,7 +335,7 @@ app_server <- function(input, output, session) {
   ## Rendering Plots
   ## Risky Plot
   output$risk_plot <- renderPlot({
-    return(risky_plot(input$species, chosen_chr(), input1_tables()[[1]], input2_tables()[[1]]))
+    return(risky_plot(input$species, chosen_chr(), input1_tables()[[1]], input2_tables()[[1]], way = 'Two' ) )
   })
 
   ## Heatmap Plots
@@ -368,19 +368,24 @@ app_server <- function(input, output, session) {
   ## By Breakpoint
   output$group_by_break1 <- renderPlot({
     req(input1_tables()[[1]])
-    return(plot_group_stats(input1_tables()[[1]], input$species, 'Risk', "List1" ))
+    req(chosen_chr())
+    return(plot_group_stats(input1_tables()[[1]], input$species, 'Risk', "List1", chosen_chr(), input$group_gene_mode))
   })
   output$group_by_break2 <- renderPlot({
     req(input2_tables()[[1]])
-    return(plot_group_stats(input2_tables()[[1]], input$species, 'Risk',"List2" ))
+    req(chosen_chr())
+    return(plot_group_stats(input2_tables()[[1]], input$species, 'Risk',"List2", chosen_chr(), input$group_gene_mode))
   })
   ## By Duplications/Insertions
   output$group_split1 <- renderPlot({
     req(input1_tables()[[1]])
-    return(plot_group_stats(input1_tables()[[1]], input$species, 'Split',"List1" ))
+    req(chosen_chr())
+    return(plot_group_stats(input1_tables()[[1]], input$species, 'Split',"List1", chosen_chr(), input$group_gene_mode))
   })
   output$group_split2 <- renderPlot({
     req(input2_tables()[[1]])
-    return(plot_group_stats(input2_tables()[[1]], input$species, 'Split',"List2" ))
+    req(chosen_chr())
+    return(plot_group_stats(input2_tables()[[1]], input$species, 'Split',"List2", chosen_chr(), input$group_gene_mode))
   })
+
 }

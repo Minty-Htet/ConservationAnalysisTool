@@ -78,6 +78,13 @@ run_liftover <- function(peaks, chain, threshold = 0.5) {
     lift_result <- lift_result[
         , .(chromosome, start, end, symbol)
     ]
+    ## Take only the first entry if there ever was a multi-hit.
+    if (length(lift_result$symbol > 1)) {
+        lift_result <- lift_result[1] 
+        return(lift_result)
+    } else {
+        return(lift_result)
+    } 
 }
 
 #' Convert genomic positions formatted in

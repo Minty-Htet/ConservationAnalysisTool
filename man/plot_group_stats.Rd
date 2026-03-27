@@ -8,7 +8,7 @@ No Loss',
 Partial Loss',
 Singlet')}
 \usage{
-plot_group_stats(input_table, species, type, label)
+plot_group_stats(input_table, species, type, label, in_chr, mode = "Group")
 }
 \description{
 Became Singlet',

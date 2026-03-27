@@ -161,11 +161,27 @@ app_ui <- function() {
             ),
             fluidRow(
               column(
-                width = 12,
+                width = 4,
                 sliderInput(
                   inputId = "disttobreak",
                   label = "Distance at which regulatory groups are considered AT RISK of crossing over EVOLUTIONARY BREAKPOINT.",
                   min = 0, max = 1000000, value = 100000, step = 10000
+                )
+              ),
+              column(
+                width = 4,
+                selectInput(
+                  'show_choice', 
+                  'Showing:', 
+                  choices = c("All", 'Shared', 'Paralogs'), multiple = FALSE,
+                  selected = "All",
+                )
+              ),
+              column(
+                width = 4,
+                conditionalPanel(
+                  condition = "input.show_choice === 'Paralogs'",
+                  textInput('dup_group', 'Input Group to show Paralogous Genes')
                 )
               )
             ),
@@ -230,9 +246,16 @@ app_ui <- function() {
               )
             )
           ),
-          
           tabPanel(
             "Grouping Statistics",
+            fluidRow(
+                  selectInput(
+                  'group_gene_mode', 
+                  'Gene or Group statistic:', 
+                  choices = c('Group', 'Gene'), multiple = FALSE,
+                  selected = "Group",
+                )
+            ),
             fluidRow(
               column(
                 width = 6,
@@ -246,8 +269,8 @@ app_ui <- function() {
               )
             )
           )
+          )
         )
       )
     )
-  )
 }

@@ -61,16 +61,27 @@ conservation_table <- function(matrix, table, split_dis) {
     , location_disrupted := fifelse(is.na(group_id), NA, location_disrupted)
   ]
 
+  ## only one ortholog left
+  only_one_left <- table[
+    !is.na(group_id)
+  ][
+    , .(group_id, symbol, chromosome_o)
+  ][ 
+    , left := sum(!is.na(chromosome_o)) , by = .(group_id)
+  ]
+
+  ## Not Applicable list
+  non_appl_vec <- only_one_left[left < 2]$group_id
+
   ## Summary of group status
   status_dt <- unique(location_dt[
     ortho_dt, on = .NATURAL
   ][ 
-    , Group_status := fifelse(one_to_one == "Lost", 'Lost', 
-    fifelse(
-      location_disrupted == 'Not Applicable', NA,
-    fifelse(
-      location_disrupted == 'TRUE', 'Group Split', 'Group Together'
-    )))
+    , Group_status := fifelse(location_disrupted == TRUE, 'Group Split',
+      fifelse(group_id %in% non_appl_vec, 'Not Applicable', 'Group Together')
+    )
+  ][
+    , Group_status := fifelse(group_id %in% ortho_dt[one_to_one == 'Lost']$group_id, 'Not Applicable', Group_status)
   ][ 
     , .(group_id, one_to_one, location_disrupted, Group_status, in_group)
   ])[
@@ -112,7 +123,9 @@ conservation_table <- function(matrix, table, split_dis) {
          , chromosome := factor(chromosome, levels = hs_chr_order)
     ][ 
       order(chromosome, chromosome2, start, start2)
-    ]
+    ],
+    status_dt,
+    only_one_left
   )
   return(final_tables)
 }
