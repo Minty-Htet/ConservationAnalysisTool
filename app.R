@@ -3,4 +3,4 @@
 library(shiny)
 pkgload::load_all(".")
 
-shinyApp(ui = app_ui(), server = app_server)
+shinyApp(ui = app_ui_oneway(), server = app_server_oneway)

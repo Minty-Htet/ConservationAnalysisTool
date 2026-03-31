@@ -669,6 +669,10 @@ heatmap_plot <- function(list_matrices, type, mode = 'interactive', bounds = c()
       geom_polygon(data = list_matrices[[5]], aes(x = x, y = y, group = id, color = grouped), fill = NA, linewidth = 0.5) +
       geom_polygon(data = list_matrices[[6]], aes(x = x, y = y, group = id, color = grouped), fill = NA, linewidth = 0.5) +
       scale_fill_gradient(name = 'log10 of Distance', low = "navyblue", high = "lightgoldenrodyellow") +
+      scale_fill_manual(values = c(
+      "Grouped" = "#00BFC4",
+      "Singlet group" = "#F8766D"
+      )) +
       coord_fixed() +
       theme(legend.position = 'bottom') +
       labs(
@@ -683,6 +687,10 @@ heatmap_plot <- function(list_matrices, type, mode = 'interactive', bounds = c()
       geom_polygon(data = list_matrices[[5]], aes(x = x, y = y, group = id, fill = grouped), alpha = 0.5, linewidth = 0.5) +
       geom_polygon(data = list_matrices[[6]], aes(x = x, y = y, group = id, fill = grouped), alpha = 0.5, linewidth = 0.5) +
       coord_fixed() +
+      scale_fill_manual(values = c(
+      "Grouped" = "#00BFC4",
+      "Singlet group" = "#F8766D"
+      )) +
       theme(legend.position = 'bottom') +
       labs(
         x = x_label,   
@@ -696,6 +704,13 @@ heatmap_plot <- function(list_matrices, type, mode = 'interactive', bounds = c()
       geom_polygon(data = list_matrices[[5]], aes(x = x, y = y, group = id, fill = one_to_one), alpha = 0.5) +
       geom_polygon(data = list_matrices[[6]], aes(x = x, y = y, group = id, fill = one_to_one), alpha = 0.5) +
       coord_fixed() +
+      scale_fill_manual(values = c(
+      "No Loss" = "#00BFC4",
+      "Partial Loss" = "#1b9e77",
+      "Lost" = "#7570b3",
+      "Became Singlet" = "brown",
+      "Singlet group" = "#F8766D"
+      )) +
       theme(legend.position = 'bottom') +
       labs(
         x = x_label,   
@@ -709,6 +724,13 @@ heatmap_plot <- function(list_matrices, type, mode = 'interactive', bounds = c()
       geom_polygon(data = list_matrices[[5]], aes(x = x, y = y, group = id, fill = Group_status), alpha = 0.5) +
       geom_polygon(data = list_matrices[[6]], aes(x = x, y = y, group = id, fill = Group_status), alpha = 0.5) +
       coord_fixed() +
+      scale_fill_manual(values = c(
+      "Group Together" = "#00BFC4",
+      "Group Split" = "#1b9e77",
+      "Not Applicable" = "#7570b3",
+      "Became Singlet" = "brown",
+      "Singlet group" = "#F8766D"
+      )) +
       theme(legend.position = 'bottom') +
       labs(
         x = x_label,   
@@ -763,7 +785,7 @@ heatmap_plot <- function(list_matrices, type, mode = 'interactive', bounds = c()
       geom_polygon(data = chrom_outline, aes(x = x, y = y, group = chromosome), color = 'black', fill = NA, linewidth = 0.5) +
       scale_fill_gradient(name = 'log10 of Distance', low = "navyblue", high = "lightgoldenrodyellow") +
       scale_color_manual(name = 'Group Status', 
-        values = c('Grouped' = '#F8766D', 'Singlet group' = '#00BFC4'),
+        values = c('Singlet group' = '#F8766D', 'Grouped' = '#00BFC4'),
         labels = c('Grouped' = 'Multi-gene group', 'Singlet group' = 'Singlet group')
         ) +
       coord_fixed() +
@@ -794,7 +816,7 @@ heatmap_plot <- function(list_matrices, type, mode = 'interactive', bounds = c()
         ], aes(x = x, y = y, group = id, fill = grouped), alpha = 0.5, linewidth = 0.1) +
       geom_polygon(data = chrom_outline, aes(x = x, y = y, group = chromosome), color = 'black', fill = NA, linewidth = 0.5) +
       scale_fill_manual(name = 'Group Status', 
-      values = c('Grouped' = '#F8766D', 'Singlet group' = '#00BFC4'),
+      values = c('Singlet group' = '#F8766D', 'Grouped' = '#00BFC4'),
       labels = c('Grouped' = 'Multi-gene group', 'Singlet group' = 'Singlet group')) +
       scale_alpha_manual(name = '(Diagonal Triangle) Has Ortholog', 
         values = c('FALSE' = 0.1, 'TRUE' = 1),
@@ -827,6 +849,13 @@ heatmap_plot <- function(list_matrices, type, mode = 'interactive', bounds = c()
         labels = c('FALSE' = 'NO', 'TRUE' = 'YES')
       ) +
       coord_fixed() +
+      scale_fill_manual(values = c(
+      "No Loss" = "#00BFC4",
+      "Partial Loss" = "#1b9e77",
+      "Lost" = "#7570b3",
+      "Became Singlet" = "brown",
+      "Singlet group" = "#F8766D"
+      )) +
       guides(fill=guide_legend(nrow=2,byrow=TRUE)) +
       theme(legend.position = 'bottom', legend.box="vertical") +
       labs(
@@ -855,6 +884,13 @@ heatmap_plot <- function(list_matrices, type, mode = 'interactive', bounds = c()
         labels = c('FALSE' = 'NO', 'TRUE' = 'YES')
       ) +
       coord_fixed() +
+      scale_fill_manual(values = c(
+      "Group Together" = "#00BFC4",
+      "Group Split" = "#1b9e77",
+      "Not Applicable" = "#7570b3",
+      "Became Singlet" = "brown",
+      "Singlet group" = "#F8766D"
+      )) +
       theme(legend.position = 'bottom', legend.box="vertical") +
       labs(
         x = x_label,   
@@ -902,7 +938,11 @@ plot_group_stats <- function(input_table, species, type, label, in_chr, mode = '
         ])
         summary_table[ 
             , one_to_one_x := as.numeric(factor(summary_table$one_to_one))
-        ][
+        ]
+        summary_table <- summary_table[
+          order(one_to_one_x, Risk_status)
+        ]
+        summary_table[
             , y_cumulative := cumsum(Risk_count), by = one_to_one_x
         ][
             , y_base := shift(y_cumulative), by = one_to_one_x
@@ -922,6 +962,9 @@ plot_group_stats <- function(input_table, species, type, label, in_chr, mode = '
           , sep := fifelse(Status == 'By Breakpoint', 0.25, -0.25)
         ]
         phrase <- paste0('\n',mode,' by Breakpoint')
+        color_vec <- c(
+          "By Breakpoint" = "#F8766D",
+          "Not by Breakpoint" = "#00BFC4")
     } 
     if (type == 'Split') {
         summary_table <- unique(summary_table <- summary_table[
@@ -929,7 +972,11 @@ plot_group_stats <- function(input_table, species, type, label, in_chr, mode = '
         ])
         summary_table[ 
             , one_to_one_x := as.numeric(factor(summary_table$one_to_one))
-        ][
+        ]
+        summary_table <- summary_table[
+          order(one_to_one_x, Group_status)
+        ]
+        summary_table[
             , y_cumulative := cumsum(Split_count), by = one_to_one_x
         ][
             , y_base := shift(y_cumulative), by = one_to_one_x
@@ -949,6 +996,10 @@ plot_group_stats <- function(input_table, species, type, label, in_chr, mode = '
           , sep := fifelse(Status == 'Group Split', 0.25, -0.25)
         ]
         phrase <- paste0('\n',mode,' by Split')
+        color_vec <- c(
+          "Group Together" = "#00BFC4",
+          "Group Split" = "#1b9e77",
+          "Not Applicable" = "#7570b3")
     }
     Group_breaks <- unique(summary_table$one_to_one)
     plot <- ggplot()  +
@@ -979,6 +1030,9 @@ plot_group_stats <- function(input_table, species, type, label, in_chr, mode = '
     labs(
         x = "Status",   
         y = "Composition" 
+    ) +
+    scale_fill_manual(name = 'Status', 
+      values = color_vec
     ) +
     ggtitle(paste(species, label, phrase, sep = ' '))
     return(plot)

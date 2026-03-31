@@ -211,7 +211,7 @@ app_server_oneway <- function(input, output, session) {
       rownames = FALSE, options = list(
         dom = 't',
         #scrollX = TRUE,      
-        scrollY = "200px", 
+        scrollY = "300px", 
         #scrollCollapse = TRUE,
         paging = FALSE       
         #pageLength = 5       
@@ -310,12 +310,15 @@ app_server_oneway <- function(input, output, session) {
   ## Render hovered groups table
   output$hovered_groups_table <- DT::renderDT({
     hovered_data <- hovered_groups()
-    return(DT::datatable(hovered_data, 
+    hovered_data <- input1_tables()[[1]][, .(symbol, symbol_o)][
+      hovered_data, on = .(symbol)
+    ]
+    return(DT::datatable(hovered_data,     
                   rownames = FALSE,
                   options = list(
                     dom = 't',
                     scrollX = TRUE,
-                    scrollY = "400px",
+                    scrollY = "300px",
                     paging = FALSE
                   ))
     )

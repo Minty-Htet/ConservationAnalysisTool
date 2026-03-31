@@ -126,15 +126,15 @@ app_ui_oneway <- function() {
               column(
                 width = 6,
                 sliderInput(
-                  inputId = "threshold",
-                  label = "Peak Conversion. Min ratio of bases that must remap:",
-                  min = 0, max = 1, value = 0.5
-                ),
-                sliderInput(
                   inputId = "dist_to_group",
                   label = "Maximum distance from peak to edge of group:",
                   min = 0, max = 100000, value = 50000, step = 10000
                 ),
+                sliderInput(
+                  inputId = "threshold",
+                  label = "Peak Conversion. Min ratio of bases that must remap:",
+                  min = 0, max = 1, value = 0.5
+                )
               )
             ),
             fluidRow(
@@ -219,7 +219,10 @@ app_ui_oneway <- function() {
                   h4("Click on the heatmaps to see group IDs"),
                   DT::DTOutput('hovered_groups_table')
                 ),
-                DT::DTOutput('position_groups_table'),
+                tags$div(
+                  h4("Position Groups Table"),
+                  DT::DTOutput('position_groups_table')
+                ),
                 sliderInput(
                   inputId = "pos_range",
                   label   = "Position range:",
