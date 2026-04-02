@@ -39,7 +39,26 @@ get_distance_matrix <- function(species, genes, peaks) {
   chosen_genes <- rbind(chosen_genes, peaks[, .(chromosome,start,end,symbol)])[
     order(chromosome, start)
   ]
-  all_vec1 <- (as.numeric(chosen_genes$start) + as.numeric(chosen_genes$end)) * 0.5 # Use midpoints to calculate distance
+  chosen_genes[
+    , next_start := shift(start, type = 'lead'), by = chromosome
+  ][
+    , next_start := fifelse(is.na(next_start), start, next_start)
+  ][ 
+    , next_end := shift(end, type = 'lead'), by = chromosome
+  ][ 
+    , next_end := fifelse(is.na(next_end), end, next_end)
+  ][
+    , dist_start_nextstart := abs(next_start - start)
+  ][
+    , dist_start_nextend := abs(next_end - start)
+  ][ 
+    , dist_end_nextstart := abs(next_start - end)
+  ][
+    , dist_end_nextend := abs(next_end - end)
+  ][ 
+    , smallest_dist := pmin(dist_start_nextstart, dist_start_nextend, dist_end_nextstart, dist_end_nextend)
+  ]
+  all_vec1 <- chosen_genes$smallest_dist # Use smallest distance to next gene for calculating distance
   names(all_vec1) <- chosen_genes$symbol
   comp_matrix_all <- outer(all_vec1, all_vec1, "-")
   rownames(comp_matrix_all) <- colnames(comp_matrix_all)
