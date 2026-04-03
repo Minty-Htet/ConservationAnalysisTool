@@ -42,7 +42,7 @@ get_distance_matrix <- function(species, genes, peaks) {
   chosen_genes[
     , next_start := shift(start, type = 'lead'), by = chromosome
   ][
-    , next_start := fifelse(is.na(next_start), start, next_start)
+    , next_start := fifelse(is.na(next_start), end, next_start)
   ][ 
     , next_end := shift(end, type = 'lead'), by = chromosome
   ][ 
@@ -57,6 +57,8 @@ get_distance_matrix <- function(species, genes, peaks) {
     , dist_end_nextend := abs(next_end - end)
   ][ 
     , smallest_dist := pmin(dist_start_nextstart, dist_start_nextend, dist_end_nextstart, dist_end_nextend)
+  ][
+    , smallest_dist := fifelse(next_start < end, 0, smallest_dist)
   ]
   all_vec1 <- chosen_genes$smallest_dist # Use smallest distance to next gene for calculating distance
   names(all_vec1) <- chosen_genes$symbol
