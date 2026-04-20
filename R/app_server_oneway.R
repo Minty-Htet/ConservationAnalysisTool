@@ -105,6 +105,7 @@ app_server_oneway <- function(input, output, session) {
       return(distance_tables)
     }
   })
+  
   input1_tables <- reactive({
     req(input1_genepeak())
     if (input$split_choice == 'Manual') {
@@ -127,13 +128,34 @@ app_server_oneway <- function(input, output, session) {
       disttobreak = input$disttobreak)
     return(final_tables)
   })
+  
+  ## Must transpose the distance comparison table
+  input2_tables <- reactive({
+    req(input1_tables())
+    list_of_tables <- copy(input1_tables())
+    transpose_table <- list_of_tables[[2]][
+      !is.na(distance)
+    ][
+      , .(symbol, symbol2, distance)
+    ]
+    colnames(transpose_table) <- c('symbol2', 'symbol', 'distance')
+    list_of_tables[[2]] <- list_of_tables[[2]][ 
+      transpose_table, on = .(symbol, symbol2)
+    ][ 
+      , distance := fifelse(is.na(distance), i.distance, distance)
+    ][ 
+      , i.distance := NULL
+    ]
+    return(list_of_tables)
+  })
+  
   ## Heatmap matrices
   heatmap_matrices <- reactive({
     req(input1_tables())
     heatmap_for_plot <- matrices_for_plot(
       input$species,
       chosen_chr(), 
-      input1_tables(), 
+      input2_tables(), 
       input1_tables(), 
       mode = 'grouped')
     return(heatmap_for_plot)

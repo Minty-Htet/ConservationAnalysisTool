@@ -652,7 +652,8 @@ matrices_for_plot <- function(species, chromosome_vec, in_obj1, in_obj2, mode = 
     id = group_id
     ), by = .(group_id)
   ]
-  return(list(in_group_diag, in_group_diag2, upper_blocks, lower_blocks, upper_group, lower_group))
+  return(list(in_group_diag, in_group_diag2, upper_blocks, 
+  lower_blocks, upper_group, lower_group))
 }
 
 ## Plot for Distance

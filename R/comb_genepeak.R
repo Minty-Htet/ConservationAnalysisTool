@@ -10,7 +10,7 @@
 
 empty_peak <- matrix(nrow = 0, ncol = 0)
 
-comb_genepeak <- function(species, genome, gene_vec, peak_vec = empty_peak, dist_to_group = 50000, exp_rocr = 500000, threshold = 0.5) {
+comb_genepeak <- function(species, genome, gene_vec, peak_vec = empty_peak, dist_to_group = 50000, exp_rocr = 500000, threshold = 0.5, chain_path = NULL) {
     dim_peak <- c(NROW(peak_vec), NCOL(peak_vec))
     ## If no peaks provided, just combine with empty peak
     if (dim_peak[1] == 0 | dim_peak[2] == 0) {
@@ -40,7 +40,7 @@ comb_genepeak <- function(species, genome, gene_vec, peak_vec = empty_peak, dist
         peak_vec <- peak_vec[, .(chromosome,start,end,symbol)]
         peak_vec <- as.data.frame(peak_vec)
         ## Convert peaks using liftover
-        peaks_part <- convert_peaks(peak_vec, genome, threshold)
+        peaks_part <- convert_peaks(peak_vec, genome, threshold, chain_path)
         ## Prepare for assigning group ids to peaks
         chr_rows <- peaks_part[[3]][
             , pmid := (start + end) / 2

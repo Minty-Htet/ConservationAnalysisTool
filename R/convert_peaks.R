@@ -9,18 +9,18 @@
 #' @keywords internal
 # Choose chains
 # Import chain files
-choose_chains <-  function(genome) {
+choose_chains <-  function(genome, chain_path) {
     chain <- list()
     if(genome == "mm39") {
-        chain[[1]] <- import.chain(get_chain_file("mm39", "mm10"))
-        chain[[2]] <- import.chain(get_chain_file("mm10", "hg38"))
+        chain[[1]] <- import.chain(get_chain_file("mm39", "mm10", chain_path))
+        chain[[2]] <- import.chain(get_chain_file("mm10", "hg38", chain_path))
     }
     if(genome == "mm10") {
-        chain[[1]] <- import.chain(get_chain_file("mm10", "mm39"))
-        chain[[2]] <- import.chain(get_chain_file("mm10", "hg38"))
+        chain[[1]] <- import.chain(get_chain_file("mm10", "mm39", chain_path))
+        chain[[2]] <- import.chain(get_chain_file("mm10", "hg38", chain_path))
     }
     if(genome == "hg38") {
-        chain[[1]] <- import.chain(get_chain_file("hg38", "mm39"))
+        chain[[1]] <- import.chain(get_chain_file("hg38", "mm39", chain_path))
     }
     return(chain)
 }
@@ -91,12 +91,13 @@ run_liftover <- function(peaks, chain, threshold = 0.5) {
 #' bed file like data frame between genomes
 #' @param peaks A bed file like dataframe. Requires a "chromosome", "start", "end", "symbol". The symbol is just a unique id for the peak
 #' @param genome A genome version. Mmusculus has mm39 and mm10 options. Hsapiens has hg38 option.
+#' @param chain_path A path to where you store chain files if you have them
 #' @return A list containing tables of 1) the mouse to human coordinates, 2) the mm10 to mm39 or mm39 to mm10 coordinates, 3) the original table with new columns showing the other species' coodinates, 4) the coordinates which failed to map to the other species
 #' @keywords export
 #' @export
-convert_peaks <- function(peaks, genome, threshold = 0.5) {
+convert_peaks <- function(peaks, genome, threshold = 0.5, chain_path = NULL) {
     # Choose the chains needed
-    chain <- choose_chains(genome)
+    chain <- choose_chains(genome, chain_path)
     # Make a list of liftover results
     # The first is the within species conversions
     # The second is the between species conversions
