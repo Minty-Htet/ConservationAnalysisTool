@@ -141,7 +141,62 @@ app_ui_oneway <- function() {
               actionButton("go_button", "GO")
             )
           ),
-          
+          tabPanel(
+            "Instructions",
+            fluidRow(
+              column(
+                width = 12,
+                markdown(
+                  "
+                  ### Please feel free to read our paper and check the [GitHub](https://github.com/Minty-Htet/ConservationAnalysisTool_Shiny).
+                  "
+                )
+              )
+            ),
+            fluidRow( 
+              column(
+                width = 6,
+                plotOutput('risk_example1')
+              ),
+              column( 
+                width = 6,
+                markdown(
+                  "
+                  # Risky Regions Plot
+                  On the X-axis coordinates: <br>
+                  0.0-0.5: The lines extending from the x-axis represent well annotated one-to-one orthologous gene pairs from mice and humans. The position of the lines on the x-axis represents the genomic coordinates of the gene in the reference genome and the height of the lines represent the genomic coordinates of the ortholog in the comparator genome. The color of the line represents the chromosome the ortholog is located on in the comparator genome, with colors for each chromosome indicated in the legend. <br>
+                  1.0, 1.5, 2.0: The arrows represent genes or peaks from the input datasets that have a one-to-one ortholog in the comparator species. 
+                  (1.0, 1.5) The smaller arrows represent peaks, and (2.0) the larger arrows represent genes. 
+                  Peaks unattached to a gene group will be represented as a small gray arrow since these cannot have a group status. <br>
+                  2.5, 3.0: The open triangles represent genes, and the open diamonds represent peaks that do not have an identifiable one-to-one ortholog in the comparator species. <br>
+                  The colors for the arrows, triangles, and diamonds represent the status of the groups as indicated in the legend.
+                  Not applicable indicates a single gene that does not meet the definition of a group of two or more features. <br>
+                  To view individual chromosomes, use the drop-down menu on the left sidebar.
+                  "
+                )
+              )
+            ),
+            fluidRow(
+              column(
+                width = 6,
+                plotOutput('grouping_example1')
+              ),
+              column(
+                width = 6,
+                markdown(
+                  "
+                  # Grouping Heatmaps
+                  The squares on the diagonal axis with bold colors represent genes or peaks with an ortholog in the comparator genome, while those with faded colors indicate there is no one-to-one ortholog. <br>
+                  The faint color larger size squares encompassing more than one square on the diagonal axis denote the genes and peaks considered to be grouped. <br>
+                  The example shows a group in blue made up of 2 genes and 2 peaks, with one gene and one peak having orthologs in the comparator genome while the second gene and peak does not have an ortholog. Also shown is a second group made up of a single gene by itself, with this gene having an ortholog. <br>
+                  The meaning for the colors of the squares is denoted in the legends for each plot. <br>
+                  Clicking on the features in the heatmaps will bring up the gene and peak IDs for all members in the group. <br>
+                  The position range bar can be used to zoom in on specific areas of the heatmaps. 
+                  "
+                )
+              )
+            )
+          ),
           tabPanel(
             "Risky Regions Plot",
             fluidRow(
@@ -162,15 +217,6 @@ app_ui_oneway <- function() {
               ),
               column(
                 width = 4,
-                selectInput(
-                  'show_choice', 
-                  'Showing:', 
-                  choices = c("All", 'Paralogs'), multiple = FALSE,
-                  selected = "All",
-                )
-              ),
-              column(
-                width = 4,
                 conditionalPanel(
                   condition = "input.show_choice === 'Paralogs'",
                   textInput('dup_group', 'Input Group to show Paralogous Genes')
@@ -182,6 +228,7 @@ app_ui_oneway <- function() {
                 width = 12,
                 tags$div(
                   h4("List 1"),
+                  downloadButton("downloadTable1", "Download CSV"),
                   DT::DTOutput('risk_render1')
                 )
               )
@@ -219,10 +266,6 @@ app_ui_oneway <- function() {
                   h4("Click on the heatmaps to see group IDs"),
                   DT::DTOutput('hovered_groups_table')
                 ),
-                tags$div(
-                  h4("Position Groups Table"),
-                  DT::DTOutput('position_groups_table')
-                ),
                 sliderInput(
                   inputId = "pos_range",
                   label   = "Position range:",
@@ -232,10 +275,17 @@ app_ui_oneway <- function() {
                   step    = 1
                 )
               )
+            ),
+            fluidRow(
+              column(
+                width = 12,
+                h4("Genomic Locations Table"),
+                DT::DTOutput('position_groups_table')
+              )
             )
           ),
           tabPanel(
-            "Grouping Statistics",
+            "Grouping Summaries",
             fluidRow(
                   selectInput(
                   'group_gene_mode', 
@@ -248,11 +298,64 @@ app_ui_oneway <- function() {
               column(
                 width = 6,
                 plotOutput('group_by_break1'),
-                plotOutput('group_split1')
+                plotOutput('perc_attached_peaks1')
               ),
               column(
                 width = 6,
-                plotOutput('group_split1')
+                plotOutput('group_split1'),
+                downloadButton("Downloadable_peaktable1", "Download CSV"), 
+                DT::DTOutput("attached_peaks1")
+              )
+            )
+          ),
+          tabPanel(
+            "Orthologous Summaries",
+            fluidRow(
+              width = 6,
+              selectInput(
+                'chosen_ortho_stat',
+                'Choose to see summary for genes or peaks',
+                choices = c('Genes', 'Peaks'), multiple = FALSE,
+                selected = "Genes"
+              )
+            ),
+            fluidRow(
+              column(
+                width = 6,
+                downloadButton("Downloadable_orthotable1", "Download CSV"),
+                DT::DTOutput('orthologous_genepeak_table1')
+              ),
+              column(
+                width = 6,
+                plotOutput('orthologous_genepeak_plot1')
+              )
+            )
+          ),
+          tabPanel(
+            "Region Size Summaries",
+            fluidRow(
+              column(
+                width = 6
+              ),
+              column(
+                width = 6,
+                selectInput(
+                'chosen_region_stat',
+                'Choose to see summary for groups or genes',
+                choices = c('Groups', 'Genes'), multiple = FALSE,
+                selected = "Groups"
+              )
+              )
+            ),
+            fluidRow(
+              column(
+                width = 6,
+                plotOutput('singlet_summaryplot')
+              ),
+              column(
+                width = 6,
+                plotOutput('groupsize_plot')
+                
               )
             )
           )

@@ -47,6 +47,9 @@ comb_genepeak <- function(species, genome, gene_vec, peak_vec = empty_peak, dist
         ]
     }
     ## Long form of pairwise distance matrix
+    if (length(gene_vec) == 0) {
+        return(print("No gene hits found. Check if you selected the correct species and nomenclature."))
+    }
     both_vec <- get_distance_matrix(species, gene_vec, chr_rows)
     ## Need to join adjusted peak locations
     both_vec[

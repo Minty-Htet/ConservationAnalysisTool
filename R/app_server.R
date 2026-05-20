@@ -6,6 +6,76 @@
 #' @keywords internal
 
 app_server <- function(input, output, session) {
+  output$risk_example1 <- renderPlot({
+    ex_back <- data.table(
+      x = seq(0, 0.5, length.out = 10), 
+      y = seq(0,1, length.out = 10),
+      Ortholog_Chromosome = c(rep("chr1",10))
+    )
+    ex_risk <- data.table(
+      x = c(1, 1.5, 2),
+      y = c(1.5, 1.5, 2),
+      y2 = c(1.1, 1.1, 1.1),
+      Status = c("Unattached Peak", rep("By Breakpoint", 2))
+    )
+    ex_lost <- data.table(
+      x = c(2.5, 3),
+      y = c(3, 4),
+      Status = rep("By Breakpoint", 2),
+      ty = c("Peak", "Gene")
+    )
+    
+    ex_plot <- ggplot() +
+    geom_segment(data = ex_back, aes(x = x, xend = x, y = 0, yend = y, color = Ortholog_Chromosome)) +
+    new_scale_color() +
+    geom_segment(
+      data = ex_risk, 
+      aes(x = x, xend = x, y = y, yend = y2, color = Status),
+      arrow = arrow(length = unit(0.1, "cm"), type = "closed")) +
+    geom_point(
+      data = ex_lost,
+      aes(x = x, y = y, shape = ty, color = Status)
+    ) +
+    scale_color_manual(values=c(
+      "By Breakpoint and Split" = "#d73027",
+      "By Breakpoint" = "orange", 
+      "Group Split" = "darkorchid2",
+      'Group Together' = 'blue',
+      'Not Applicable' = 'black',
+      'Unattached Peak' = 'grey'
+      ),
+      breaks = c("By Breakpoint and Split", "By Breakpoint", "Group Split", 'Group Together', 'Not Applicable', 'Unattached Peak')
+      ) +
+    scale_shape_manual(
+      name = 'Missing Ortholog',
+      values = c("Gene" =  5, "Peak" = 6)
+    )
+    return(ex_plot)
+  })
+
+  output$grouping_example1 <- renderPlot({
+    ex_features <- data.table(
+      x = c(0, 0, 1, 0, 1, 1, 3, 1, 3, 3, 4, 3, 4, 4, 6, 4, 6, 6, 8, 6),
+      y = c(0, 1, 1, 0, 1, 3, 3, 1, 3, 4, 4, 3, 4, 6, 6, 4, 6, 8, 8, 6),
+      id = c(1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5),
+      Has_ortholog = c(rep('YES', 8), rep('NO', 8), rep('YES', 4)),
+      grouped = c(rep('Grouped', 16), rep('Singlet group', 4))
+    )
+    ex_group <- data.table(
+      x = c(0, 0, 6, 0),
+      y = c(0,6, 6, 0),
+      id = c(1, 1, 1, 1),
+      grouped = c('Grouped', 'Grouped', 'Grouped', 'Grouped')
+    )
+    ex_plot <- ggplot() +
+      geom_polygon(data = ex_features, aes(x = x ,y = y, group = id, alpha = Has_ortholog, fill = grouped), color = 'black', linewidth = 0.1) +
+      geom_polygon(data = ex_group, aes(x = x, y = y, group = id, fill = grouped), alpha = 0.5) +
+      scale_fill_manual(values = c(
+      "Grouped" = "#00BFC4",
+      "Singlet group" = "#F8766D"
+      ))
+    return(ex_plot)
+  })
 
   # Message shown when starting the thing  
   observeEvent(input$go_button, {
@@ -286,12 +356,43 @@ app_server <- function(input, output, session) {
     return(c(new_group1_min, new_group1_max, new_group2_min, new_group2_max))
   })
 
-  ## Rendering Tables
-  ## Risk Tables
-  output$risk_render1 <- DT::renderDT({
+  ## Orthologous tables
+  ortho_table1 <- reactive({
     req(input1_tables())
+    return(ortho_summary(chosen_inputs1(), chosen_peaks1(), input1_tables()[[1]], input$chosen_ortho_stat))
+  })
+
+  ## Attached Unattached Table
+  peak_attach_table1 <- reactive({
+    req(input1_tables()[[1]])
+    req(chosen_chr())
+    return(table_attached_peaks(input1_tables()[[1]], chosen_chr()))
+  })
+
+  ## Orthologous tables
+  ortho_table2 <- reactive({
+    req(input2_tables())
+    return(ortho_summary(chosen_inputs2(), chosen_peaks2(), input2_tables()[[1]], input$chosen_ortho_stat))
+  })
+
+  ## Attached Unattached Table
+  peak_attach_table2 <- reactive({
+    req(input2_tables()[[1]])
+    req(chosen_chr())
+    return(table_attached_peaks(input2_tables()[[1]], chosen_chr()))
+  })
+
+  render1 <- reactive({
+    req(input1_tables())
+    render1_table <- plot_tab_CAT(chosen_chr(), input1_tables()[1] )
+    return(render1_table)
+  })
+  output$risk_render1 <- DT::renderDT({
+    req(render1())
     return( 
-      DT::datatable(plot_tab_CAT(chosen_chr(), input1_tables()[1] ), rownames = FALSE,
+      DT::datatable(
+        render1(), 
+        rownames = FALSE,
   options = list(
   dom = 't',
   scrollX = TRUE,    # horizontal scrolling
@@ -303,25 +404,136 @@ app_server <- function(input, output, session) {
     )
   }
   )
-  output$risk_render2 <- DT::renderDT({
+  ## Downloadable Table
+  output$downloadTable1 <- downloadHandler(
+    filename = function() {
+      paste("List1table", Sys.Date(), ".csv", sep = "_")
+    },
+    content = function(file) {
+      write.csv(render1(), file, row.names = FALSE)
+    }
+  )
+  
+  render2 <- reactive({
     req(input2_tables())
+    render2_table <- plot_tab_CAT(chosen_chr(), input2_tables()[1] )
+    return(render2_table)
+  })
+  output$risk_render2 <- DT::renderDT({
+    req(render2())
     return(
-      DT::datatable(plot_tab_CAT(chosen_chr(), input2_tables()[[1]]), rownames = FALSE,
-  options = list(
-  dom = 't',
-  scrollX = TRUE,    # horizontal scrolling
-  scrollY = "400px", # vertical scrolling
-  paging = FALSE   # disables pagination if you want scroll only,
-  ),
-        filter = "top")
+      DT::datatable(
+        render2(), 
+        rownames = FALSE,
+        options = list(
+          dom = 't',
+          scrollX = TRUE,    # horizontal scrolling
+          scrollY = "400px", # vertical scrolling
+          paging = FALSE   # disables pagination if you want scroll only,
+        ),
+        filter = "top"
+        )
     )
   }
+  )
+  ## Downloadable Table
+  output$downloadTable2 <- downloadHandler(
+    filename = function() {
+      paste("List2table", Sys.Date(), ".csv", sep = "_")
+    },
+    content = function(file) {
+      write.csv(render2(), file, row.names = FALSE)
+    }
+  )
+
+  ## Render Attach Unattach Table
+  output$attached_peaks1 <- DT::renderDT({
+    return(peak_attach_table1())
+  })
+  ## Downloadable Table
+  output$Downloadable_peaktable1 <- downloadHandler(
+    filename = function() {
+      paste("Peak_attach", Sys.Date(), ".csv", sep = "_")
+    },
+    content = function(file) {
+      write.csv(peak_attach_table1(), file, row.names = FALSE)
+    }
+  )
+  ## Render Attach Unattach Table
+  output$attached_peaks2 <- DT::renderDT({
+    return(peak_attach_table2())
+  })
+  ## Downloadable Table
+  output$Downloadable_peaktable2 <- downloadHandler(
+    filename = function() {
+      paste("Peak_attach2", Sys.Date(), ".csv", sep = "_")
+    },
+    content = function(file) {
+      write.csv(peak_attach_table2(), file, row.names = FALSE)
+    }
+  )
+  ## Render orthologous tables
+  output$orthologous_genepeak_table1 <- DT::renderDT({
+    req(ortho_table1())
+    return(
+      DT::datatable(ortho_table1(),
+      rownames = FALSE, options = list(
+        dom = 't',
+        scrollX = TRUE,
+        scrollY = "300px",
+        paging = FALSE
+        ),
+        filter = "top")
+    )
+  })
+  ## Downloadable Table
+  output$Downloadable_orthotable1 <- downloadHandler(
+    filename = function() {
+      paste("Ortho_status", Sys.Date(), ".csv", sep = "_")
+    },
+    content = function(file) {
+      write.csv(ortho_table1(), file, row.names = FALSE)
+    }
+  )
+  ## Render orthologous tables
+  output$orthologous_genepeak_table2 <- DT::renderDT({
+    req(ortho_table2())
+    return(
+      DT::datatable(ortho_table2(),
+      rownames = FALSE, options = list(
+        dom = 't',
+        scrollX = TRUE,
+        scrollY = "300px",
+        paging = FALSE
+        ),
+        filter = "top")
+    )
+  })
+  ## Downloadable Table
+  output$Downloadable_orthotable2 <- downloadHandler(
+    filename = function() {
+      paste("Ortho_status2", Sys.Date(), ".csv", sep = "_")
+    },
+    content = function(file) {
+      write.csv(ortho_table2(), file, row.names = FALSE)
+    }
   )
   
   ## Position and Group ID
   output$position_groups_table <- DT::renderDT({
+    display_overall <- rbind(
+      input1_tables()[[1]][,.(symbol, symbol_o, chromosome, start, end)],
+      input2_tables()[[1]][,.(symbol, symbol_o, chromosome, start, end)]
+    )[
+      chromosome %in% chosen_chr()
+    ]
+    display_overall <- position_groups()[
+      , .(symbol, List1_group, List2_group)
+    ][ 
+      display_overall, on = .(symbol)
+    ]
     return(
-      DT::datatable(position_groups(), rownames = FALSE, options = list(
+      DT::datatable(display_overall, rownames = FALSE, options = list(
         dom = 't',
         scrollX = TRUE,    # horizontal scrolling
         scrollY = "400px", # vertical scrolling
@@ -388,4 +600,122 @@ app_server <- function(input, output, session) {
     return(plot_group_stats(input2_tables()[[1]], input$species, 'Split',"List2", chosen_chr(), input$group_gene_mode))
   })
 
+  ## Attach Unattached Peaks
+  output$perc_attached_peaks1 <- renderPlot({
+    req(peak_attach_table1())
+    return(plot_attached_peaks(input1_tables()[[1]], chosen_chr()))
+  })
+
+# ortho_summary_prop <- function(ortho_table, type) {
+  output$orthologous_genepeak_plot1 <- renderPlot({
+    req(ortho_table1())
+    return(ortho_summary_prop(ortho_table1(), input$chosen_ortho_stat))
+  })
+
+  ## Attach Unattached Peaks
+  output$perc_attached_peaks2 <- renderPlot({
+    req(peak_attach_table2())
+    return(plot_attached_peaks(input2_tables()[[1]], chosen_chr()))
+  })
+
+# ortho_summary_prop <- function(ortho_table, type) {
+  output$orthologous_genepeak_plot2 <- renderPlot({
+    req(ortho_table2())
+    return(ortho_summary_prop(ortho_table2(), input$chosen_ortho_stat))
+  })
+
+  output$singlet_summaryplot1 <- renderPlot({
+    req(input1_tables()[[1]])
+    return(singlet_summary(input1_tables()[[1]], chosen_chr() ) )
+  })
+  output$singlet_summaryplot2 <- renderPlot({
+    req(input2_tables()[[1]])
+    return(singlet_summary(input2_tables()[[1]], chosen_chr() ) )
+  })
+
+  ## Group Size Summaries
+  output$singlet_summaryplot1 <- renderPlot({
+    req(input1_tables()[[1]])
+    return(singlet_summary(input1_tables()[[1]], chosen_chr() ) )
+  })
+  ## Group Size Summaries
+  output$groupsize_plot1 <- renderPlot({
+    req(input1_tables()[[1]])
+    return(group_size_plot(input1_tables()[[1]], chosen_chr(), input$chosen_region_stat))
+  })
+  ## Group Size Summaries
+  output$singlet_summaryplot2 <- renderPlot({
+    req(input2_tables()[[1]])
+    return(singlet_summary(input2_tables()[[1]], chosen_chr() ) )
+  })
+  ## Group Size Summaries
+  output$groupsize_plot2 <- renderPlot({
+    req(input2_tables()[[1]])
+    return(group_size_plot(input2_tables()[[1]], chosen_chr(), input$chosen_region_stat))
+  })
+
+  ## Click on heatmaps to show group IDs
+  hovered_groups <- reactive({
+    req(input$heatmap_click)
+    req(heatmap_matrices())
+    
+    click <- input$heatmap_click
+    
+    # Get upper_group (list_matrices[[5]]) and lower_group (list_matrices[[6]])
+    upper_groups <- heatmap_matrices()[[5]][, source := "Upper"]
+    lower_groups <- heatmap_matrices()[[6]][, source := "Lower"]
+    
+    # Combine both data frames
+    all_groups <- rbind(upper_groups, lower_groups)
+    all_groups <- all_groups[
+        , min_x := min(x), by = .(id, source)
+      ][
+        , max_x := max(x), by = .(id, source)
+      ][
+        , min_y := min(y), by = .(id, source)
+      ][
+        , max_y := max(y), by = .(id, source)
+      ][ 
+        , .( id, source, min_x, max_x, min_y, max_y)
+      ]
+    all_groups <- unique(all_groups)
+    
+    # Find groups where click coordinates fall within the polygon
+    # The x and y values in the data frame define polygons
+    click_x <- click$x
+    click_y <- click$y
+
+    all_groups <- all_groups[
+      (click_x >= min_x & click_x <= max_x) &
+      (click_y >= min_y & click_y <= max_y)
+    ]
+    display_table <- position_groups()[
+      List1_group %in% all_groups[source == "Upper"]$id | List2_group %in% all_groups[source == "Lower"]$id
+    ]
+    return(display_table)
+  })
+
+  ## Render hovered groups table
+  output$hovered_groups_table <- DT::renderDT({
+    hovered_data <- hovered_groups()
+    hovered_data <- input1_tables()[[1]][, .(symbol, symbol_o)][
+      hovered_data, on = .(symbol)
+    ]
+    hovered_data <- input2_tables()[[1]][, .(symbol, symbol_o)][
+      hovered_data, on = .(symbol)
+    ][ 
+      , symbol_o := fifelse(is.na(symbol_o), i.symbol_o, symbol_o)
+    ][ 
+      , i.symbol_o := NULL
+    ]
+    return(DT::datatable(hovered_data,     
+                  rownames = FALSE,
+                  options = list(
+                    dom = 't',
+                    scrollX = TRUE,
+                    scrollY = "300px",
+                    paging = FALSE
+                  ))
+    )
+  })
 }

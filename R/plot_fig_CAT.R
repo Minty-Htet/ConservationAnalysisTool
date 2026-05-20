@@ -5,6 +5,7 @@
 #' @importFrom ggplot2 geom_segment
 #' @importFrom ggplot2 geom_point
 #' @importFrom ggplot2 geom_polygon
+#' @importFrom ggplot2 geom_violin
 #' @importFrom ggplot2 geom_rect
 #' @importFrom ggplot2 aes
 #' @importFrom ggplot2 ggtitle
@@ -15,13 +16,19 @@
 #' @importFrom ggplot2 scale_color_manual
 #' @importFrom ggplot2 scale_alpha_manual
 #' @importFrom ggplot2 scale_x_continuous
+#' @importFrom ggplot2 scale_x_discrete
 #' @importFrom ggplot2 guides
+#' @importFrom ggplot2 expand_limits
 #' @importFrom ggplot2 guide_legend
 #' @importFrom ggplot2 coord_fixed
 #' @importFrom ggplot2 theme
 #' @importFrom ggplot2 element_blank
+#' @importFrom ggplot2 element_text
+#' @importFrom ggplot2 position_dodge
+#' @importFrom forcats fct_rev
 #' @importFrom grid arrow unit
 #' @importFrom ggnewscale new_scale_color
+#' @importFrom ggnewscale new_scale
 #' @importFrom data.table as.data.table
 #' @keywords internal
 
@@ -106,6 +113,8 @@ risky_plot <- function(species, chromosome_vec, front_df1, front_df2, background
     , type := fifelse(grepl("chr", symbol), 0.75, 1)
   ][
     , type_spacing := fifelse(grepl("chr", symbol), 0.9, 1)
+  ][ 
+    , dotshape := fifelse(type == 1, "Gene", "PeakFir")
   ]
 
   down_df1 <- front_df2[
@@ -129,6 +138,8 @@ risky_plot <- function(species, chromosome_vec, front_df1, front_df2, background
     , type := fifelse(grepl("chr", symbol), 0.75, 1)
   ][
     , type_spacing := fifelse(grepl("chr", symbol), 0.9, 1)
+  ][ 
+    , dotshape := fifelse(type == 1, "Gene", "PeakSec")
   ]
   
   fil_back <- back_df[chromosome %in% chromosome_vec & !grepl("chr", symbol)]
@@ -148,7 +159,7 @@ risky_plot <- function(species, chromosome_vec, front_df1, front_df2, background
   if (mode == 'All') {
     ## For labels of groups by breakpoints
     up_label <- up_df1[
-      !is.na(group_id) & !is.na(chromosome_o) & (Risk_status == 'By Breakpoint') 
+      !is.na(group_id) & !is.na(chromosome_o) & (Risk_status == 'By Breakpoint' | Group_status == 'Group Split') 
     ][
       , overall := mean(mid), by = .(group_id)
     ][
@@ -158,7 +169,7 @@ risky_plot <- function(species, chromosome_vec, front_df1, front_df2, background
     ]
     up_label <- unique(up_label)
     down_label <- down_df1[
-      !is.na(group_id) & !is.na(chromosome_o) & (Risk_status == 'By Breakpoint')
+      !is.na(group_id) & !is.na(chromosome_o) & (Risk_status == 'By Breakpoint' | Group_status == 'Group Split')
     ][
       , overall := mean(mid), by = .(group_id)
     ][
@@ -175,7 +186,7 @@ risky_plot <- function(species, chromosome_vec, front_df1, front_df2, background
       alpha = 1
       ) +
       labs(
-      x = paste(species, "Gene Midpoint Position (bp)"),
+      x = paste(species, "Cumulative Gene Midpoint Position from 5prime of Chromosome 1 (bp)"),
       y = paste(ortholog_species, "Midpoint Position (bp)"),
       color = "Ortholog Chromosome"
       ) +
@@ -186,7 +197,6 @@ risky_plot <- function(species, chromosome_vec, front_df1, front_df2, background
       aes(x = mid, xend = mid, yend = mid_o + yoto_space, y = mid_o + 2 * yoto_space * type, color = status),
       arrow = arrow(length = unit(0.1, "cm"), type = "closed"), 
       linewidth = 0.2) + # for one to one orthos
-      geom_point(data = up_df1[is.na(chromosome_o)], aes(x = mid, y = noto_space/type_spacing , color = status), shape = 6) + # for no orthos
       geom_text(data = up_label, aes(x = overall, y = overall_o + 2 * yoto_space, label = group_id)) +
       geom_point(
       data = data.frame(
@@ -195,6 +205,11 @@ risky_plot <- function(species, chromosome_vec, front_df1, front_df2, background
       ),
       aes(x = x, y = y, shape = flag),
       size = 4
+      ) +
+      scale_shape_manual(
+      name   = "One to One ortholog",
+      values = c("Has ortholog" = 17, "No ortholog" =  2),
+      guide = guide_legend(order = 1)
       ) +
       scale_color_manual(values=c(
       "By Breakpoint and Split" = "#d73027",
@@ -206,12 +221,18 @@ risky_plot <- function(species, chromosome_vec, front_df1, front_df2, background
       ),
       breaks = c("By Breakpoint and Split", "By Breakpoint", "Group Split", 'Group Together', 'Not Applicable', 'Unattached Peak')
       ) +
+      new_scale('shape') +
+      geom_point(data = up_df1[is.na(chromosome_o)], aes(x = mid, y = noto_space/type_spacing , color = status, shape = dotshape)) + # for no orthos
       scale_shape_manual(
-      name   = "One to One ortholog",
-      values = c("Has ortholog" = 17, "No ortholog" =  2)
+      name   = "Missing Ortholog",
+      values = c("Gene" =  5, "PeakFir" = 6),
+      labels = c("Gene" = "Gene", "PeakFir" = "Peak"),
+      guide = guide_legend(order = 2)
       ) +
       labs(color = 'Group Status') +
-      guides(alpha = "none")
+      guides(alpha = "none") +
+      theme(text = element_text(size = 14))
+
     } else {
       risk_plot <- ggplot(data = fil_back) +
       geom_segment(
@@ -223,7 +244,7 @@ risky_plot <- function(species, chromosome_vec, front_df1, front_df2, background
       alpha = 1
       ) +
       labs(
-      x = paste(species, "Gene Midpoint Position (bp)"),
+      x = paste(species, "Cumulative Gene Midpoint Position from 5prime of Chromosome 1 (bp)"),
       y = paste(ortholog_species, "Midpoint Position (bp)"),
       color = "Ortholog Chromosome"
       ) +
@@ -234,14 +255,12 @@ risky_plot <- function(species, chromosome_vec, front_df1, front_df2, background
       aes(x = mid, xend = mid, yend = mid_o + yoto_space, y = mid_o + 2 * yoto_space * type, color = status),
       arrow = arrow(length = unit(0.1, "cm"), type = "closed"), 
       linewidth = 0.2) + # for one to one orthos
-      geom_point(data = up_df1[is.na(chromosome_o)], aes(x = mid, y = noto_space/type_spacing , color = status), shape = 6) + # for no orthos
       geom_text(data = up_label, aes(x = overall, y = overall_o + 2 * yoto_space, label = group_id)) +
       geom_segment(
       data = down_df1[!is.na(chromosome_o)], 
       aes(x = mid, xend = mid, yend = -mid_o - yoto_space, y = -mid_o - 2 * yoto_space * type, color = status),
       arrow = arrow(length = unit(0.1, "cm"), type = "closed"), 
       linewidth = 0.2) +
-      geom_point(data = down_df1[is.na(chromosome_o)], aes(x = mid, y = -noto_space/type_spacing, color = status), shape = 2) +
       geom_text(data = down_label, aes(x = overall, y = -overall_o - 2 * yoto_space, label = group_id)) +
       geom_point(
       data = data.frame(
@@ -250,6 +269,20 @@ risky_plot <- function(species, chromosome_vec, front_df1, front_df2, background
       ),
       aes(x = x, y = y, shape = flag),
       size = 4
+      ) +
+      scale_shape_manual(
+      name   = "One to One ortholog",
+      values = c("Has ortholog" = 17, "No ortholog" =  2),
+      guide = guide_legend(order = 1)
+      ) +
+      new_scale("shape") +
+      geom_point(data = up_df1[is.na(chromosome_o)], aes(x = mid, y = noto_space/type_spacing , color = status, shape = dotshape)) + # for no orthos
+      geom_point(data = down_df1[is.na(chromosome_o)], aes(x = mid, y = -noto_space/type_spacing, color = status, shape = dotshape)) +
+      scale_shape_manual(
+      name   = "Missing Ortholog",
+      values = c("Gene" =  5, "PeakFir" = 6, "PeakSec" = 2),
+      labels = c("Gene" = "Gene", "PeakFir" = "Peak List1", "PeakSec" = "Peak List2"),
+      guide = guide_legend(order = 2)
       ) +
       scale_color_manual(values=c(
       "By Breakpoint and Split" = "#d73027",
@@ -261,12 +294,9 @@ risky_plot <- function(species, chromosome_vec, front_df1, front_df2, background
       ),
       breaks = c("By Breakpoint and Split", "By Breakpoint", "Group Split", 'Group Together', 'Not Applicable', 'Unattached Peak')
       ) +
-      scale_shape_manual(
-      name   = "One to One ortholog",
-      values = c("Has ortholog" = 17, "No ortholog" =  2)
-      ) +
       labs(color = 'Group Status') +
-      guides(alpha = "none")
+      guides(alpha = "none") +
+      theme(text = element_text(size = 14))
     }
     
   }
@@ -423,9 +453,20 @@ matrices_for_plot <- function(species, chromosome_vec, in_obj1, in_obj2, mode = 
     , .(symbol,symbol2,coord,diff,i.coord,i.diff,distance, group_id, group_id2, grouped, Group_status, one_to_one, chromosome, has_ortho)
   ][
     order(coord, i.coord)
+  ]
+  
+  fix <- in_group_df[,.(symbol2, symbol, distance)]
+  colnames(fix) <- c('symbol', 'symbol2', 'distance2')
+  in_group_df <- fix[
+    in_group_df, on = .(symbol,symbol2)
+  ][ 
+    , distance := fifelse(is.na(distance), distance2, distance)
   ][
     i.coord >= coord
+  ][ 
+    , distance2 := NULL
   ]
+
   # Diagonals
   in_group_diag <- in_group_df[
     symbol == symbol2
@@ -660,6 +701,7 @@ matrices_for_plot <- function(species, chromosome_vec, in_obj1, in_obj2, mode = 
 heatmap_plot <- function(list_matrices, type, mode = 'interactive', bounds = c(), version = 'Two') {
   x_label <- ifelse(version == 'Two', 'List2', 'Gene')
   y_label <- ifelse(version == 'Two', 'List1', 'Gene')
+  ortho_label <- ifelse(version == 'Two', '(Diagonal Triangle) Has Ortholog', '(Diagonal Square) Has Ortholog')
   if (mode == 'interactive') {
     if (type == 'distance') {
       plot <- ggplot() +
@@ -790,16 +832,14 @@ heatmap_plot <- function(list_matrices, type, mode = 'interactive', bounds = c()
         labels = c('Grouped' = 'Multi-gene group', 'Singlet group' = 'Singlet group')
         ) +
       coord_fixed() +
-      theme(legend.position = 'bottom', legend.box="vertical") +
+      theme(legend.position = 'bottom', legend.box="vertical", text = element_text(size = 12)) +
       labs(
         x = x_label,   
         y = y_label,
         fill = 'Log10 of distance',
         color = 'Group Status'
-      )
-      #return(list_matrices[[4]][
-      #    group_id >= bounds[3] & group_id <= bounds[4]
-      #  ])
+      ) +
+      guides(color=guide_legend(nrow=2,byrow=TRUE)) 
     }
     if (type == 'grouped') {
       plot <- ggplot() +
@@ -819,16 +859,17 @@ heatmap_plot <- function(list_matrices, type, mode = 'interactive', bounds = c()
       scale_fill_manual(name = 'Group Status', 
       values = c('Singlet group' = '#F8766D', 'Grouped' = '#00BFC4'),
       labels = c('Grouped' = 'Multi-gene group', 'Singlet group' = 'Singlet group')) +
-      scale_alpha_manual(name = '(Diagonal Triangle) Has Ortholog', 
+      scale_alpha_manual(name = ortho_label, 
         values = c('FALSE' = 0.1, 'TRUE' = 1),
         labels = c('FALSE' = 'NO', 'TRUE' = 'YES')
       ) +
       coord_fixed() +
-      theme(legend.position = 'bottom', legend.box="vertical") +
+      theme(legend.position = 'bottom', legend.box="vertical", text = element_text(size = 12)) +
       labs(
         x = x_label,   
         y = y_label
-      )
+      ) +
+      guides(fill=guide_legend(nrow=2,byrow=TRUE))
     }
     if (type == 'sequence') {
       plot <- ggplot() +
@@ -845,7 +886,7 @@ heatmap_plot <- function(list_matrices, type, mode = 'interactive', bounds = c()
           id >= bounds[3] & id <= bounds[4]
         ], aes(x = x, y = y, group = id, fill = one_to_one), alpha = 0.5) +
       geom_polygon(data = chrom_outline, aes(x = x, y = y, group = chromosome), color = 'black', fill = NA, linewidth = 0.5) +
-      scale_alpha_manual(name = '(Diagonal Triangle) Has Ortholog', 
+      scale_alpha_manual(name = ortho_label, 
         values = c('FALSE' = 0.1, 'TRUE' = 1),
         labels = c('FALSE' = 'NO', 'TRUE' = 'YES')
       ) +
@@ -858,7 +899,7 @@ heatmap_plot <- function(list_matrices, type, mode = 'interactive', bounds = c()
       "Singlet group" = "#F8766D"
       )) +
       guides(fill=guide_legend(nrow=2,byrow=TRUE)) +
-      theme(legend.position = 'bottom', legend.box="vertical") +
+      theme(legend.position = 'bottom', legend.box="vertical", text = element_text(size = 12)) +
       labs(
         x = x_label,   
         y = y_label,
@@ -880,7 +921,7 @@ heatmap_plot <- function(list_matrices, type, mode = 'interactive', bounds = c()
           id >= bounds[3] & id <= bounds[4]
         ], aes(x = x, y = y, group = id, fill = Group_status), alpha = 0.5) +
       geom_polygon(data = chrom_outline, aes(x = x, y = y, group = chromosome), color = 'black', fill = NA, linewidth = 0.5) +
-      scale_alpha_manual(name = '(Diagonal Triangle) Has Ortholog', 
+      scale_alpha_manual(name = ortho_label, 
         values = c('FALSE' = 0.1, 'TRUE' = 1),
         labels = c('FALSE' = 'NO', 'TRUE' = 'YES')
       ) +
@@ -892,12 +933,13 @@ heatmap_plot <- function(list_matrices, type, mode = 'interactive', bounds = c()
       "Became Singlet" = "brown",
       "Singlet group" = "#F8766D"
       )) +
-      theme(legend.position = 'bottom', legend.box="vertical") +
+      theme(legend.position = 'bottom', legend.box="vertical", text = element_text(size = 12)) +
       labs(
         x = x_label,   
         y = y_label,
         fill = 'Location Status'
-      )
+      ) +
+      guides(fill=guide_legend(nrow=2,byrow=TRUE))
     }
     return(plot)
   }
@@ -994,7 +1036,7 @@ plot_group_stats <- function(input_table, species, type, label, in_chr, mode = '
         ][ 
             , Split_count := NULL
         ][ 
-          , sep := fifelse(Status == 'Group Split', 0.25, -0.25)
+          , sep := fifelse(Status == 'Not Applicable' , 0,fifelse(Status == 'Group Split', 0.25, -0.25))
         ]
         phrase <- paste0('\n',mode,' by Split')
         color_vec <- c(
@@ -1002,6 +1044,8 @@ plot_group_stats <- function(input_table, species, type, label, in_chr, mode = '
           "Group Split" = "#1b9e77",
           "Not Applicable" = "#7570b3")
     }
+    buffer <- min(summary_table$Group_count) * 0.33
+    summary_table$buffer <- buffer
     Group_breaks <- unique(summary_table$one_to_one)
     plot <- ggplot()  +
     geom_rect(
@@ -1009,11 +1053,11 @@ plot_group_stats <- function(input_table, species, type, label, in_chr, mode = '
         aes(xmin = one_to_one_x - 0.375, xmax = one_to_one_x + 0.375, ymin = y_base, ymax = y_cumulative, fill = Status)
     ) + 
     geom_text(
-        data = unique(summary_table[,.(one_to_one_x, Group_count)]),
+        data = unique(summary_table[,.(one_to_one_x, Group_count, buffer)]),
         aes(
             x = one_to_one_x, 
-            y = Group_count * 1.1, 
-            label = paste("Total:", Group_count, sep = '\n')
+            y = Group_count * 1.1 + buffer, 
+            label = paste("Total:", Group_count, sep = ' ')
         )
     ) +
     geom_text(
@@ -1035,6 +1079,192 @@ plot_group_stats <- function(input_table, species, type, label, in_chr, mode = '
     scale_fill_manual(name = 'Status', 
       values = color_vec
     ) +
-    ggtitle(paste(species, label, phrase, sep = ' '))
+    ggtitle(paste(species, label, phrase, sep = ' ')) +
+    theme(text = element_text(size = 14))
     return(plot)
+}
+
+plot_attached_peaks <- function(input_table, chromosome_vec) {
+  plot_dat <- input_table[ 
+    chromosome %in% chromosome_vec
+  ][
+    grepl('chr', symbol)
+  ][ 
+    , .(symbol, group_id)
+  ]
+  not_attached <- length(plot_dat[is.na(group_id)]$symbol)
+  attached <- length(plot_dat[!is.na(group_id)]$symbol)
+  plot_dat2 <- data.table(
+    Status = c('Attached to Group', 'Not Attached to Group'),
+    Count = c(attached, not_attached)
+  )
+  plot <- ggplot(plot_dat2, aes(x = Status, fill = Status)) +
+    geom_bar(aes(y = Count), stat = 'identity') +
+    geom_text(aes(y = Count * 1.1, label = paste("Total:", Count))) +
+    scale_fill_manual(values = c('Attached to Group' = '#00BFC4', 'Not Attached to Group' = '#F8766D')) +
+    labs(
+      x = "Status",   
+      y = "Count" 
+    ) +
+    theme(text = element_text(size = 14)) +
+    ggtitle("Peaks Attached to Groups")
+  return(plot)
+
+}
+
+ortho_summary_prop <- function(ortho_table, type) {
+  if (type == 'Peaks') {
+    summary_table <- ortho_table[ 
+      , total := .N
+    ][ 
+      , Has_Ortholog_Num := .N, by = .(Has_Ortholog)
+    ][ 
+      , Has_Ortholog_Proportion := Has_Ortholog_Num / total
+    ]
+    summary_table <- unique(summary_table[, .(Has_Ortholog, Has_Ortholog_Proportion)])
+    plot <- ggplot(summary_table, aes(x = Has_Ortholog, fill = Has_Ortholog)) +
+      geom_bar(aes(y = Has_Ortholog_Proportion), stat = 'identity') +
+      geom_text(aes(y = Has_Ortholog_Proportion + 0.1, label = round(Has_Ortholog_Proportion, 2))) +
+      scale_fill_manual(values = c('Yes' = '#00BFC4', 'No' = '#F8766D')) +
+      labs(
+        x = "Has Ortholog",   
+        y = "Proportion" 
+      ) +
+      theme(legend.position = 'none', text = element_text(size = 14)) +
+      ggtitle(paste(type, "Ortholog Proportions", sep = ' '))
+    return(plot)
+  } else if (type == 'Genes') {
+    summary_table <- ortho_table[ 
+      , total := .N
+    ][ 
+      , Has_Ortholog_Num := .N, by = .(Has_Ortholog)
+    ][ 
+      , Has_Ortholog_Proportion := Has_Ortholog_Num / total
+    ][ 
+      , In_Annotation_Num := .N, by = .(In_Annotation)
+    ][ 
+      , In_Annotation_Proportion := In_Annotation_Num / total
+    ]
+    summary_table <- unique(summary_table[, .(Has_Ortholog, Has_Ortholog_Proportion, In_Annotation, In_Annotation_Proportion)])
+    summary_ortho <- unique(summary_table[,.(Has_Ortholog, Has_Ortholog_Proportion)][,Type := 'Has_Ortholog'])
+    summary_annot <- unique(summary_table[,.(In_Annotation, In_Annotation_Proportion)][,Type := 'In_Annotation'])
+    colnames(summary_ortho) <- c('Status', 'Proportion', 'Type')
+    colnames(summary_annot) <- c('Status', 'Proportion', 'Type')
+    melted_summary <-  rbind(summary_ortho,summary_annot)[
+      , Status := factor(Status, levels = c('Yes', 'No'))
+    ][ 
+      order(Type,Status)
+    ][ 
+      , cumulative_prop := cumsum(Proportion), by = .(Type)
+    ]
+    plot <- ggplot(melted_summary, aes(x = Type, fill = forcats::fct_rev(Status))) +
+      geom_bar(aes(y = Proportion), stat = 'identity', position = 'dodge') +
+      geom_text(aes(y = 1, label = round(Proportion, 2)), position = position_dodge(width = 0.9) ) +
+      scale_fill_manual(name = 'Status', values = c('Yes' = '#00BFC4', 'No' = '#F8766D')) +
+      labs(
+        x = "Status Type",   
+        y = "Proportion" 
+      ) +
+      theme(
+        legend.position = 'bottom', 
+        text = element_text(size = 14),
+        fill = 'Status'
+        ) +
+      ggtitle(paste(type, "Ortholog Proportions", sep = ' ')) +
+      labs(x = 'Status')
+  }
+  return(plot)
+}
+
+singlet_summary <- function(input_table, chromosome_vec) {
+  plot_dat <- unique(input_table[ 
+    chromosome %in% chromosome_vec
+  ][
+    !is.na(group_id)
+  ][
+    , .(group_id, in_group)
+  ])
+  plot_dat <- plot_dat[
+    , total_count := .N
+  ][
+    , group_count := .N, by = .(in_group)
+  ][
+    , group_proportion := group_count/total_count
+  ]
+
+  plot <- ggplot(plot_dat) +
+  geom_bar(aes(x = in_group, y = group_proportion, fill = in_group), stat = 'identity', position = 'dodge') +
+  geom_text(data = unique(plot_dat[,.(in_group, group_proportion, group_count)]), aes(x = in_group, y = group_proportion + 0.1, label = paste("Total", group_count, sep = ' ')), position = position_dodge(width = 0.9) ) +
+  scale_fill_manual(
+    name = 'Grouped Status', 
+    values = c('TRUE' = '#00BFC4', 'FALSE' = '#F8766D'),
+    labels = c('TRUE' = 'Multi-gene group', 'FALSE' = 'Singlet group')
+    ) +
+  scale_x_discrete(
+    "Grouped Status",
+    labels = c(
+      "TRUE" = "Multi-gene group",
+      "FALSE" = "Singlet group"
+    )
+  ) +
+  labs(x = "Grouped", y = "Proportion") +
+  theme(text = element_text(size = 14))
+  return(plot)
+  
+}
+
+group_size_plot <- function(input_table, chromosome_vec, stat_type) {
+  plot_dat <- input_table[
+    chromosome %in% chromosome_vec
+  ][
+    !is.na(group_id)
+  ][
+    , .(symbol, group_id, in_group, start, end)
+  ]
+  if (stat_type == 'Groups') {
+    plot_dat <- plot_dat[
+    , group_start := min(start), by = .(group_id)
+    ][
+    , group_end := max(end), by = .(group_id)
+    ][
+    , length := log10(group_end - group_start)
+    ][
+    , log_medianlength := median(length), by = .(in_group)
+    ][
+    ,.(in_group, log_medianlength, length)
+    ]
+  }
+  if (stat_type == 'Genes') {
+    plot_dat <- plot_dat[
+    , length := log10(end - start)
+    ][
+    , log_medianlength := median(length), by = .(in_group)
+    ][
+    ,.(in_group, log_medianlength, length)
+    ]
+  }
+  plot <- ggplot(plot_dat, aes(x = in_group)) +
+  geom_violin(
+    aes(y = length, fill = in_group)
+    ) +
+  geom_point(
+    data = unique(plot_dat[,.(in_group, log_medianlength)]), 
+    aes(y = log_medianlength), color = 'black'
+    ) +
+  expand_limits(y = 0) +
+  scale_fill_manual(
+    name = 'Grouped Status', 
+    values = c('TRUE' = '#00BFC4', 'FALSE' = '#F8766D'),
+    labels = c('TRUE' = 'Multi-gene group', 'FALSE' = 'Singlet group')
+    ) +
+  scale_x_discrete(
+    "Grouped Status",
+    labels = c(
+      "TRUE" = "Multi-gene group",
+      "FALSE" = "Singlet group"
+    )
+  ) +
+  labs(y = "Log of Length") +
+  theme(text = element_text(size = 14))
+  return(plot)
 }

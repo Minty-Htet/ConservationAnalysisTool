@@ -50,3 +50,57 @@ search_up <- function(cat_obj1, cat_obj2, chromosome_vec, type = 'grouped', vers
     }
     return(group)
 }
+
+table_attached_peaks <- function(input_table, chromosome_vec) {
+  plot_dat <- input_table[ 
+    chromosome %in% chromosome_vec
+  ][
+    grepl('chr', symbol)
+  ][ 
+    , .(symbol, group_id)
+  ][ 
+    , Attached := fifelse(!is.na(group_id), "Yes", "No")
+  ]
+  return(plot_dat)
+}
+
+ortho_summary <- function(input_gene_vec, input_peak_vec, cat_table, type) {
+  if (type == 'Genes') {
+    ortho_table <- cat_table[,.(symbol, chromosome, chromosome_o)][
+      data.table(symbol = input_gene_vec), on = .(symbol)
+    ][
+      , In_Annotation := fifelse(!is.na(chromosome), "Yes", "No")
+    ][ 
+      , Has_Ortholog := fifelse(!is.na(chromosome_o), "Yes", "No")
+    ][
+      ,.(symbol, In_Annotation, Has_Ortholog)
+    ]
+  } else if (type == 'Peaks') {
+    ortho_table <- cat_table[,.(symbol, chromosome, chromosome_o)][
+      data.table(symbol = input_peak_vec), on = .(symbol)
+    ][ 
+      , Has_Ortholog := fifelse(!is.na(chromosome_o), "Yes", "No")
+    ][
+      ,.(symbol, Has_Ortholog)
+    ]
+  }
+  return(ortho_table)
+}
+
+group_size_tab <- function(input_table, chromosome_vec) {
+  plot_dat <- input_table[
+    chromosome %in% chromosome_vec
+  ][
+    , .(symbol, group_id, in_group, start, end)
+  ]
+  plot_dat[
+    , group_start := min(start), by = .(group_id)
+  ][
+    , group_end := max(end), by = .(group_id)
+  ][
+    , length := log10(group_end - group_start)
+  ][
+    , log_medianlength := median(length), by = .(in_group)
+  ]
+  return(plot_dat)
+}

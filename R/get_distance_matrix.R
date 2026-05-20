@@ -36,32 +36,6 @@ distance_per_chrom <- function(input_table, chromosome_input) {
     # build the difference matrix using outer
     comparison_matrix_chr1 <- outer(start_vec, end_vec, FUN = function(s, e) s - e)
 
-    # keep only entries where diff is <= 0, then map back to symbols
-    #idx <- which(comparison_matrix_chr1 <= 0, arr.ind = TRUE)
-    #chr1_nonpositive <- data.table(
-    #    start = start_vec[idx[, 1]],
-    #    start_symbol = symbol_vec[idx[, 1]],
-    #    end = end_vec[idx[, 2]],
-    #    end_symbol = symbol_vec[idx[, 2]],
-    #    diff = comparison_matrix_chr1[idx]
-    #)
-    #chr1_nonpositive <- chr1_nonpositive[start_symbol != end_symbol]
-
-    # attach the start position for the end_symbol and compute the new difference
-    #end_symbol_start <- unique(chr1_dt[, .(end_symbol = symbol, end_symbol_start = start)])
-    #chr1_nonpositive <- merge(
-    #    chr1_nonpositive,
-    #    end_symbol_start,
-    #    by = 'end_symbol',
-    #    all.x = TRUE,
-    #    sort = FALSE
-    #)
-    #overlaps_chr <- chr1_nonpositive[
-    #    , start_endsymbol_start_dif := end_symbol_start - start
-    #][
-    #    start_endsymbol_start_dif <= 0
-    #]
-
     colnames(comparison_matrix_chr1) <- symbol_vec
     rownames(comparison_matrix_chr1) <- symbol_vec
     lower_mat <- comparison_matrix_chr1
@@ -89,12 +63,6 @@ get_distance_matrix <- function(species, genes, peaks) {
   chosen_genes <- rbind(chosen_genes, peaks[, .(chromosome,start,end,symbol)])[
     order(chromosome, start)
   ]
-  
-  #all_vec1 <- (as.numeric(chosen_genes$start) + as.numeric(chosen_genes$end)) * 0.5 # Use midpoints to calculate distance # Use smallest distance to next gene for calculating distance
-  #names(all_vec1) <- chosen_genes$symbol
-  #comp_matrix_all <- outer(all_vec1, all_vec1, "-")
-  #rownames(comp_matrix_all) <- colnames(comp_matrix_all)
-  #long_matrix_all <- as.data.table(comp_matrix_all, keep.rownames = "id")
   chrom_vec <- unique(chosen_genes$chromosome)
   result_list <- lapply(chrom_vec, function(s) distance_per_chrom (chosen_genes, s))
   long_matrix_all <- do.call(rbind, result_list)

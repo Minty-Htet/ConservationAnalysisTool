@@ -44,10 +44,10 @@ run_liftover <- function(peaks, chain, threshold = 0.5) {
         order(seqnames, start)
     ]
     if(nrow(lift_result) > 0) { # If there are ortholog hits
-        lift_result <- lift_result[ 
-            , adj_start := min(start), by = .(seqnames) # Smooth the start sites
+        lift_result <- lift_result[
+            , total_start := min(start), by = .(seqnames) # Smooth the start sites
             ][ 
-            , adj_end := max(end), by = .(seqnames) # Smooth the end sites
+            , total_end := max(end), by = .(seqnames) # Smooth the end sites
             ][  
             , adj_chromosome := seqnames
             ][ 
@@ -55,9 +55,27 @@ run_liftover <- function(peaks, chain, threshold = 0.5) {
             ][ 
                 as.data.table(peaks)[, .(symbol, total_len)], on = .(adj_symbol = symbol)
             ][ 
-                ,len := adj_end - adj_start
+                ,len := total_end - total_start
+            ][
+                , next_start := shift(start, type = 'lead')
+            ][
+                , next_start := fifelse(is.na(next_start), end, next_start)
+            ][
+                , dist_to_nextstart := next_start - end
+            ][
+              , fragment_num := cumsum(shift(dist_to_nextstart > len, fill = FALSE)), by = .(adj_symbol)
+            ][
+                , adj_start := min(start), by = .(fragment_num)
+            ][
+                , adj_end := max(end), by = .(fragment_num)
+            ][
+                , frag_len := adj_end - adj_start, by = .(fragment_num)
+            ][
+                , max_frag_len := max(frag_len), by = .(fragment_num)
+            ][
+                frag_len == max_frag_len
             ][ 
-                len > threshold*total_len
+                frag_len > threshold*total_len
             ][
                 , .(adj_chromosome, adj_start, adj_end, adj_symbol)
             ]
@@ -78,7 +96,7 @@ run_liftover <- function(peaks, chain, threshold = 0.5) {
     lift_result <- lift_result[
         , .(chromosome, start, end, symbol)
     ]
-    ## Take only the first entry if there ever was a multi-hit.
+    ## Take only the first entry if there ever was a multi-hit where the fragments are of the same length.
     if (length(lift_result$symbol > 1)) {
         lift_result <- lift_result[1] 
         return(lift_result)

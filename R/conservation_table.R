@@ -40,19 +40,19 @@ conservation_table <- function(matrix, table, split_dis) {
   location_dt <- table[
     ortho_dt, on = "group_id"
   ][ 
-    , .(symbol, symbol_o, chromosome_o, start_o, group_id)
+    , .(symbol, symbol_o, chromosome_o, start_o, end_o, group_id)
   ][
-    order(group_id, start_o)
-  ][ 
-    , lag_start := shift(start_o), by = group_id
-  ][ 
-    , lag_start := fifelse(is.na(lag_start), start_o, lag_start)
+    order(group_id, chromosome_o, start_o)
+  ][
+    , lag_end := shift(end_o), by = group_id
+  ][
+    , lag_end := fifelse(is.na(lag_end), start_o, lag_end)
   ][ 
     , lag_chr := shift(chromosome_o), by = group_id
   ][ 
     , lag_chr := fifelse(is.na(lag_chr), chromosome_o, lag_chr)
   ][
-    , Disrupt := fifelse(abs(lag_start - start_o) <= split_dis & lag_chr == chromosome_o, FALSE, TRUE) , by = group_id
+    , Disrupt := fifelse(abs(start_o - lag_end) <= split_dis & lag_chr == chromosome_o, FALSE, TRUE) , by = group_id
   ][
     , location_disrupted := ifelse(any(Disrupt, na.rm = TRUE), "TRUE", "FALSE"), by = group_id
   ][

@@ -3,9 +3,82 @@
 #' @importFrom data.table fifelse
 #' @importFrom data.table copy
 #' @importFrom stringr str_split
+#' @importFrom ggnewscale new_scale_color
+#' @importFrom ggplot2 scale_fill_manual
+#' @importFrom ggplot2 scale_color_manual
 #' @keywords internal
 
 app_server_oneway <- function(input, output, session) {
+  output$risk_example1 <- renderPlot({
+    ex_back <- data.table(
+      x = seq(0, 0.5, length.out = 10), 
+      y = seq(0,1, length.out = 10),
+      Ortholog_Chromosome = c(rep("chr1",10))
+    )
+    ex_risk <- data.table(
+      x = c(1, 1.5, 2),
+      y = c(1.5, 1.5, 2),
+      y2 = c(1.1, 1.1, 1.1),
+      Status = c("Unattached Peak", rep("By Breakpoint", 2))
+    )
+    ex_lost <- data.table(
+      x = c(2.5, 3),
+      y = c(3, 4),
+      Status = rep("By Breakpoint", 2),
+      ty = c("Peak", "Gene")
+    )
+    
+    ex_plot <- ggplot() +
+    geom_segment(data = ex_back, aes(x = x, xend = x, y = 0, yend = y, color = Ortholog_Chromosome)) +
+    new_scale_color() +
+    geom_segment(
+      data = ex_risk, 
+      aes(x = x, xend = x, y = y, yend = y2, color = Status),
+      arrow = arrow(length = unit(0.1, "cm"), type = "closed")) +
+    geom_point(
+      data = ex_lost,
+      aes(x = x, y = y, shape = ty, color = Status)
+    ) +
+    scale_color_manual(values=c(
+      "By Breakpoint and Split" = "#d73027",
+      "By Breakpoint" = "orange", 
+      "Group Split" = "darkorchid2",
+      'Group Together' = 'blue',
+      'Not Applicable' = 'black',
+      'Unattached Peak' = 'grey'
+      ),
+      breaks = c("By Breakpoint and Split", "By Breakpoint", "Group Split", 'Group Together', 'Not Applicable', 'Unattached Peak')
+      ) +
+    scale_shape_manual(
+      name = 'Missing Ortholog',
+      values = c("Gene" =  5, "Peak" = 6)
+    )
+    return(ex_plot)
+  })
+
+  output$grouping_example1 <- renderPlot({
+    ex_features <- data.table(
+      x = c(0, 0, 1, 1, 1, 1, 3, 3, 3, 3, 4, 4, 4, 4, 6, 6, 6, 6, 8, 8),
+      y = c(0, 1, 1, 0, 1, 3, 3, 1, 3, 4, 4, 3, 4, 6, 6, 4, 6, 8, 8, 6),
+      id = c(1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5),
+      Has_ortholog = c(rep('YES', 8), rep('NO', 8), rep('YES', 4)),
+      grouped = c(rep('Grouped', 16), rep('Singlet group', 4))
+    )
+    ex_group <- data.table(
+      x = c(0, 0, 6, 6),
+      y = c(0,6, 6, 0),
+      id = c(1, 1, 1, 1),
+      grouped = c('Grouped', 'Grouped', 'Grouped', 'Grouped')
+    )
+    ex_plot <- ggplot() +
+      geom_polygon(data = ex_features, aes(x = x ,y = y, group = id, alpha = Has_ortholog, fill = grouped), color = 'black', linewidth = 0.1) +
+      geom_polygon(data = ex_group, aes(x = x, y = y, group = id, fill = grouped), alpha = 0.5) +
+      scale_fill_manual(values = c(
+      "Grouped" = "#00BFC4",
+      "Singlet group" = "#F8766D"
+      ))
+    return(ex_plot)
+  })
 
   # Message shown when starting the thing  
   observeEvent(input$go_button, {
@@ -205,12 +278,32 @@ app_server_oneway <- function(input, output, session) {
     return(c(new_group1_min, new_group1_max, new_group1_min, new_group1_max))
   })
 
+  ## Orthologous tables
+  ortho_table1 <- reactive({
+    req(input1_tables())
+    return(ortho_summary(chosen_inputs1(), chosen_peaks1(), input1_tables()[[1]], input$chosen_ortho_stat))
+  })
+
+  ## Attached Unattached Table
+  peak_attach_table1 <- reactive({
+    req(input1_tables()[[1]])
+    req(chosen_chr())
+    return(table_attached_peaks(input1_tables()[[1]], chosen_chr()))
+  })
+
   ## Rendering Tables
   ## Risk Tables
-  output$risk_render1 <- DT::renderDT({
+  render1 <- reactive({
     req(input1_tables())
+    render1_table <- plot_tab_CAT(chosen_chr(), input1_tables()[1] )
+    return(render1_table)
+  })
+  output$risk_render1 <- DT::renderDT({
+    req(render1())
     return( 
-      DT::datatable(plot_tab_CAT(chosen_chr(), input1_tables()[1] ), rownames = FALSE,
+      DT::datatable(
+        render1(), 
+        rownames = FALSE,
   options = list(
   dom = 't',
   scrollX = TRUE,    # horizontal scrolling
@@ -222,11 +315,24 @@ app_server_oneway <- function(input, output, session) {
     )
   }
   )
-  
+  ## Downloadable Table
+  output$downloadTable1 <- downloadHandler(
+    filename = function() {
+      paste("List1table", Sys.Date(), ".csv", sep = "_")
+    },
+    content = function(file) {
+      write.csv(render1(), file, row.names = FALSE)
+    }
+  )
+
   ## Position and Group ID
   output$position_groups_table <- DT::renderDT({
-    pos_groups <- copy(position_groups())[
-      , List1_group := as.character(List1_group)
+    pos_groups <- input1_tables()[[1]][ 
+      , List1_group := as.character(group_id)
+    ][ 
+      chromosome %in% chosen_chr()
+    ][ 
+      , .(symbol, symbol_o, List1_group, chromosome, start, end)
     ]
     return(
       DT::datatable(pos_groups, 
@@ -242,6 +348,60 @@ app_server_oneway <- function(input, output, session) {
     )
     })
 
+  ## Render hovered groups table
+  output$hovered_groups_table <- DT::renderDT({
+    hovered_data <- hovered_groups()
+    hovered_data <- input1_tables()[[1]][, .(symbol)][
+      hovered_data, on = .(symbol)
+    ]
+    return(DT::datatable(hovered_data,     
+                  rownames = FALSE,
+                  options = list(
+                    dom = 't',
+                    scrollX = TRUE,
+                    scrollY = "300px",
+                    paging = FALSE
+                  ))
+    )
+  })
+
+  ## Render Attach Unattach Table
+  output$attached_peaks1 <- DT::renderDT({
+    return(peak_attach_table1())
+  })
+  ## Downloadable Table
+  output$Downloadable_peaktable1 <- downloadHandler(
+    filename = function() {
+      paste("Peak_attach", Sys.Date(), ".csv", sep = "_")
+    },
+    content = function(file) {
+      write.csv(peak_attach_table1(), file, row.names = FALSE)
+    }
+  )
+
+  ## Render orthologous tables
+  output$orthologous_genepeak_table1 <- DT::renderDT({
+    req(ortho_table1())
+    return(
+      DT::datatable(ortho_table1(),
+      rownames = FALSE, options = list(
+        dom = 't',
+        scrollX = TRUE,
+        scrollY = "300px",
+        paging = FALSE
+        ),
+        filter = "top")
+    )
+  })
+  ## Downloadable Table
+  output$Downloadable_orthotable1 <- downloadHandler(
+    filename = function() {
+      paste("Ortho_status", Sys.Date(), ".csv", sep = "_")
+    },
+    content = function(file) {
+      write.csv(ortho_table1(), file, row.names = FALSE)
+    }
+  )
 
   ## Rendering Plots
   ## Risky Plot
@@ -288,6 +448,29 @@ app_server_oneway <- function(input, output, session) {
     req(chosen_chr())
     return(plot_group_stats(input1_tables()[[1]], input$species, 'Split',"List1", chosen_chr(), input$group_gene_mode))
   })
+  ## Attach Unattached Peaks
+  output$perc_attached_peaks1 <- renderPlot({
+    req(peak_attach_table1())
+    return(plot_attached_peaks(input1_tables()[[1]], chosen_chr()))
+  })
+
+# ortho_summary_prop <- function(ortho_table, type) {
+  output$orthologous_genepeak_plot1 <- renderPlot({
+    req(ortho_table1())
+    return(ortho_summary_prop(ortho_table1(), input$chosen_ortho_stat))
+  })
+
+  ## Group Size Summaries
+  output$singlet_summaryplot <- renderPlot({
+    req(input1_tables()[[1]])
+    return(singlet_summary(input1_tables()[[1]], chosen_chr() ) )
+  })
+
+  ## Group Size Summaries
+  output$groupsize_plot <- renderPlot({
+    req(input1_tables()[[1]])
+    return(group_size_plot(input1_tables()[[1]], chosen_chr(), input$chosen_region_stat))
+  })
 
   ## Click on heatmaps to show group IDs
   hovered_groups <- reactive({
@@ -327,23 +510,6 @@ app_server_oneway <- function(input, output, session) {
     display_table <- position_groups()[List1_group %in% all_groups[source == "Upper"]$id]
     return(display_table)
     
-  })
-  
-  ## Render hovered groups table
-  output$hovered_groups_table <- DT::renderDT({
-    hovered_data <- hovered_groups()
-    hovered_data <- input1_tables()[[1]][, .(symbol, symbol_o)][
-      hovered_data, on = .(symbol)
-    ]
-    return(DT::datatable(hovered_data,     
-                  rownames = FALSE,
-                  options = list(
-                    dom = 't',
-                    scrollX = TRUE,
-                    scrollY = "300px",
-                    paging = FALSE
-                  ))
-    )
   })
 
 }
