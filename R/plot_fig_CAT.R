@@ -699,8 +699,8 @@ matrices_for_plot <- function(species, chromosome_vec, in_obj1, in_obj2, mode = 
 
 ## Plot for Distance
 heatmap_plot <- function(list_matrices, type, mode = 'interactive', bounds = c(), version = 'Two') {
-  x_label <- ifelse(version == 'Two', 'List2', 'Gene')
-  y_label <- ifelse(version == 'Two', 'List1', 'Gene')
+  x_label <- ifelse(version == 'Two', 'List2', 'Features ordered by position')
+  y_label <- ifelse(version == 'Two', 'List1', 'Features ordered by position')
   ortho_label <- ifelse(version == 'Two', '(Diagonal Triangle) Has Ortholog', '(Diagonal Square) Has Ortholog')
   if (mode == 'interactive') {
     if (type == 'distance') {

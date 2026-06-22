@@ -6,9 +6,127 @@
 #' @importFrom ggnewscale new_scale_color
 #' @importFrom ggplot2 scale_fill_manual
 #' @importFrom ggplot2 scale_color_manual
+#' @importFrom ggplot2 coord_cartesian
+#' @importFrom grid arrow unit
 #' @keywords internal
 
 app_server_oneway <- function(input, output, session) {
+  output$remapbases <- renderPlot({
+    ex_ref <- data.table(
+      x = c(
+        0, 0, 2, 2, 
+        0, 0, 0.5, 0.5,
+        0.6, 0.6, 1, 1,
+        1.2, 1.2, 2, 2
+        ),
+      y = c(
+        0.25, 0.75, 0.75, 0.25, 
+        -0.25, -0.5, -0.5, -0.25,
+        -0.25, -0.5, -0.5, -0.25,
+        -0.75, -1, -1, -0.75
+        ),
+      group = c(
+        1, 1, 1, 1, 
+        2, 2, 2, 2,
+        3, 3, 3, 3,
+        4, 4, 4, 4
+        ),
+      label = c(
+      'Reference', 'Reference', 'Reference', 'Reference', 
+      'CHRa', 'CHRa', 'CHRa', 'CHRa', 
+      'CHRa', 'CHRa', 'CHRa', 'CHRa',
+      'CHRb', 'CHRb', 'CHRb', 'CHRb'
+      )
+    )
+    ex_lines <- data.table(
+      x = c(0, 0.6, 1.2),
+      x2 = c(0.5, 1, 2),
+      y = c(-0.6, -0.6, -0.6),
+      label = c('CHRa', 'CHRa', 'CHRb')
+    )
+    ex_lines2 <- data.table(
+      x = c(0, 1.2),
+      x2 = c(1, 2)
+    )
+    ex_labs <- data.table(
+      x = c(-0.1, 2.1, 1, 0.5, 1.5),
+      y = c(0 ,0, 1, 0.1, 0.1),
+      label = c("Oi,1", "Oi,2", "Pi", "0.5", "0.4")
+    )
+    ex_plot <- ggplot() +
+    geom_polygon(data = ex_ref, aes(x = x, y = y, group = group, fill = label)) +
+    geom_segment(data=ex_lines,aes(x= x, xend = x2, y = y, yend = y, color = label),
+    arrow = arrow(length = unit(0.1, "cm"), type = "closed")) +
+    geom_segment(data=ex_lines2,aes(x = x, xend = x2, y = 0, yend = 0)) +
+    geom_text(data=ex_labs,aes(x = x, y = y, label = label)) +
+    coord_cartesian(xlim = c(-0.5, 2.5), ylim = c(-1.5,1.5))
+    return(ex_plot)
+  })
+
+  output$edgesandvertices <- renderPlot({
+    ex_edge <- data.table(
+      id = c("V1", "V2", "V3", "V4"),
+      x = c(1, 2, 6,7),
+      Group = c("1","1","2","2")
+      )
+    ex_vertices <- data.table(
+      x1 = c(1.25,2.25,6.25),
+      x2 = c(1.75,5.75,6.75),
+      edge = c("connected", "cut", "connected")
+    )
+    ex_edgelabel <- data.table(
+      x = c(1.5,4,6.5),
+      label = c('E1,2', 'E2,3', 'E3,4')
+    )
+    ex_plot <- ggplot() +
+    geom_point(data = ex_edge, aes(x = x, y = 0, fill = Group), size =4, shape =21) +
+    geom_text(data = ex_edge, aes(x = x, y = 0.25, label = id), size = 6) +
+    geom_segment(data=ex_vertices, aes(x = x1, xend = x2, y = 0, yend = 0, color = edge)) +
+    geom_text(data=ex_edgelabel, aes(x=x, y =-0.25, label = label)) +
+    coord_cartesian(xlim = c(0, 7), ylim = c(-1,1) )
+    return(ex_plot)
+  })
+
+  output$peaktogroup <- renderPlot({
+    ex_group <- data.table(
+      x = c(1, 2),
+      y = c(0, 0)
+    )
+    ex_peak <- data.table(
+      x1 = c(1.5, 2.25, 2.75),
+      status = c("attached", "attached", "unattached")
+    )
+    ex_bounds <- data.table(
+      x = c(0.5,0.5,2.5,2.5),
+      y = c(-1, 1,1,-1)
+    )
+    ex_distance <- data.table(
+      x1 = c(1.5,1.5,2.75),
+      x2 = c(0.5,2.5,2.5),
+      y = c(0,0,0),
+      boundary = c("within","within","outside")
+    )
+    ex_labs <- data.table(
+      x = c(0.5, 1, 2, 1.5, 1.5, 2.25, 2.5, 2.75),
+      y = c(1,0.5, 0.5, 1.5, 0.5, 0.5, 1, 0.5),
+      labs = c("B1,1","V1", "V2", "Group1", "P1", "P2", "B1,2","P3")
+    )
+    ex_plot <- ggplot() +
+    geom_segment(data=ex_distance, aes(x = x1, xend = x2, y = y, yend = y, color = boundary),
+    arrow = arrow(length = unit(0.1, "cm"), type = "closed")) +
+    scale_color_manual(values = c(
+      "within" = "red",
+      "outside" = "blue"
+    )) +
+    new_scale_color() +
+    geom_polygon(data=ex_bounds, aes(x = x, y = y, group = 1), fill = "#F8766D", alpha = 0.2) +
+    geom_point(data=ex_group, aes(x = x, y = 0), fill = "#F8766D", size = 10, shape = 21) +
+    geom_segment(data=ex_peak, aes(x = x1, xend = x1, yend = -0.125, y = 0.125, color = status)) +
+    geom_text(data=ex_labs, aes(x= x,y=y,label=labs)) +
+    coord_cartesian(xlim = c(0, 3), ylim = c(-2,2) )
+    return(ex_plot)
+  })
+
   output$risk_example1 <- renderPlot({
     ex_back <- data.table(
       x = seq(0, 0.5, length.out = 10), 
@@ -264,7 +382,7 @@ app_server_oneway <- function(input, output, session) {
   ## Might be overkill. It's pretty much only for the shiny app.
   zoom_groups <- reactive({
     req(input$pos_range)
-    req(position_groups)
+    req(position_groups())
     ## Get the min and max positions
     min_val <- input$pos_range[1]
     max_val <- input$pos_range[2]
@@ -327,13 +445,17 @@ app_server_oneway <- function(input, output, session) {
 
   ## Position and Group ID
   output$position_groups_table <- DT::renderDT({
+    req(position_groups())
     pos_groups <- input1_tables()[[1]][ 
+      chromosome %in% chosen_chr()
+    ][
+      position_groups(), on = .(symbol, group_id = List1_group)
+    ][
       , List1_group := as.character(group_id)
     ][ 
-      chromosome %in% chosen_chr()
-    ][ 
-      , .(symbol, symbol_o, List1_group, chromosome, start, end)
+      , .(symbol, symbol_o, List1_group, position, chromosome, start, end)
     ]
+    
     return(
       DT::datatable(pos_groups, 
       rownames = FALSE, options = list(

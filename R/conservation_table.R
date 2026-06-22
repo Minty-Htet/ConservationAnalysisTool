@@ -27,7 +27,7 @@ conservation_table <- function(matrix, table, split_dis) {
   ][  
     , n_unique_symbols := data.table::uniqueN(symbol), by = group_id
   ][ 
-    ,  n_oto := data.table::uniqueN(symbol_o[!is.na(symbol_o)]), by = group_id
+    ,  n_oto := data.table::uniqueN(symbol_o[!is.na(chromosome_o)]), by = group_id
   ][, one_to_one := fifelse(n_unique_symbols == 1 & n_oto == 1, "Singlet group",
         fifelse(n_oto == 0, "Lost",
           fifelse(n_unique_symbols != 1 & n_oto == 1, "Became Singlet",

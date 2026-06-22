@@ -114,7 +114,7 @@ app_ui_oneway <- function() {
                 ),
                 selectInput(
                   'split_choice', 
-                  'Maximum distance between the orthologous regions of a group you tolerate before considereing it to be split. Default is same value is Expected Size of the Regions of Coordinated Regulation with the floor being 500kb:', 
+                  'Maximum distance between the orthologous regions of a group you tolerate before considering it to be split. Default is same value is Expected Size of the Regions of Coordinated Regulation with the floor being 500kb:', 
                   choices = c("Default", 'Manual'), multiple = FALSE,
                   selected = "Default",
                 ),
@@ -151,6 +151,98 @@ app_ui_oneway <- function() {
                   ### Please feel free to read our paper and check the [GitHub](https://github.com/Minty-Htet/ConservationAnalysisTool_Shiny).
                   "
                 )
+              )
+            ),
+            fluidRow(
+              column(
+                width = 6,
+                markdown(
+                  "
+                  # Settings Explanations
+                  "
+                )
+              )
+            ),
+            fluidRow(
+              column(
+                width = 6,
+                plotOutput('edgesandvertices')
+              ),
+              column(
+                width = 6,
+                markdown(
+                  "
+                  # Expected size of Regions of Coordinated Regulation
+                  Groupings are done based on a undirected graph. 
+                  Each gene is ordered based on their genomic location and they will be represented as vertices (Vi) in the graph.
+                  The distance from each gene to the next gene is represented as an edge (Ei,i+1).
+                  All edges longer than the Expected size of Regions of Coordinated Regulation are cut.
+                  Vertices connected by edges are grouped together.
+                  "
+                )
+              )
+            ),
+            fluidRow(
+              column(
+                width = 6,
+                plotOutput('peaktogroup')
+              ),
+              column(
+                width = 6,
+                markdown(
+                  "
+                  # Maximum distance from peak to edge of group
+                  This is the cut-off distance from the boundaries of a group before a peak is no longer assigned to a group.
+                  Here is how it is used: <br>
+                  Suppose the red dots represent the genes within a group and the lines represent peaks.
+                  The bounds (Bi,1 , Bi,2) of a group (Gi) is determined by the most 5' start (Si) and the most 3' end (Ei)
+                  and the cut-off distance (d). <br>
+                  5' bound Bi,1 is the most 5' start minus cut-off distance (Bi,1 = Si - d) <br>
+                  3' bound Bi,2 is the most 3' end minus cut-off distance (Bi,2 = Ei - d) <br>
+                  Peaks (Pi) are determined to be within the bounds by checking if there is any overlap between the coordinates of
+                  bounds and the coordinates of the peaks.
+                  "
+                )
+              )
+            ),
+            fluidRow(
+              column(
+                width = 6,
+                plotOutput('remapbases')
+              ),
+              column(
+                width = 6,
+                markdown(
+                  "
+                  # Minimum ratio of bases that must remap
+                  This is the ratio (R) of the orthologous region length (Oi,j) to a given reference peak length (Li). 
+                  The length of the region and the peak is measured in bases. 
+                  Passing this threshold will designate the orthologous region as the orthologous peak of the reference peak. <br>
+                  Note that the representative orthologous region is chosen by combining orthologous fragments 
+                  (Fi,j,k) which are: <br> 
+                  1) of the same orthologous chromosome and within the reference peak length (Li) of each other. <br>
+                  2) taking the 5' start and the 3' end of the largest combined fragment <br>
+                  The resulting orthologous region is considered an orthologous peak if the ratio of the ortholgous region length 
+                  to the reference peak length is at least the chosen ratio. (Oi,j * R >= Li) <br>
+                  The example to the left has Reference peak (Pi) queried at 0.5 R. Let's say the query gives us 3 fragments.
+                  2 fragments map to orthoglous chromsome a (CHRa) and one to orthologous chromosome b (CHRb). 
+                  The 2 fragments on CHRa (Fi,1,a ; Fi,2,a) are combined into orthologous region 1 (Oi,1) 
+                  which covers 50% of the reference peak length. The 1 fragment on orthologous chromosome b (Fi,3,b) 
+                  covers 40% of the reference peak length and is designated orthologous region 2 (Oi,2). 
+                  The longest of the orthoglous region is chosen to be the representative region which is ortholgous 
+                  region 1 (Oi,1 > Oi,2) and since orthologous region 1 meets the 0.5 threshold, it is designated as the 
+                  orthologous peak.
+                  "
+                )
+              )
+            ),
+            fluidRow(
+              column(
+                width = 6,
+                markdown("# Plot Explanations")
+              ),
+              column(
+                width = 6
               )
             ),
             fluidRow( 
