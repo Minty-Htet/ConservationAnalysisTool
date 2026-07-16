@@ -1,6 +1,5 @@
 # app.R
-# Manually load libraries so the server doesn't have to "think" as hard
 library(shiny)
+library(pkgload)
 pkgload::load_all(".")
-
-shinyApp(ui = app_ui_oneway(), server = app_server_oneway)
+shiny::shinyApp(ui = app_ui_oneway(), server = app_server_oneway)

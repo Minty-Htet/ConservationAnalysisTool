@@ -1,3 +1,6 @@
+#' @importFrom shinyjs useShinyjs
+#' @importFrom DT DTOutput
+
 app_ui <- function() {
   fluidPage(
     # 1. Add busy spinner and global styles
@@ -28,7 +31,7 @@ app_ui <- function() {
       "))
     ),
     
-    titlePanel("Comparative Dashboard"),
+    titlePanel("Conservation Analysis Tool-2 way"),
     
     sidebarLayout(
       ## Side bar Panel for on the fly Chromosome Selection

@@ -945,145 +945,6 @@ heatmap_plot <- function(list_matrices, type, mode = 'interactive', bounds = c()
   }
 }
 
-plot_group_stats <- function(input_table, species, type, label, in_chr, mode = 'Group') {
-    #Group_breaks <- c(
-    #'Became Singlet',
-    #'Lost',
-    #'No Loss',
-    #'Partial Loss',
-    #'Singlet')
-    if (mode == 'Group') {
-        summary_table <- unique(input_table[
-            !grepl("chr", symbol) & chromosome %in% in_chr
-        ][ 
-            , .(group_id, one_to_one, Risk_status, Group_status)
-        ])
-    }
-    if (mode == 'Gene') {
-        summary_table <- unique(input_table[
-            !grepl("chr", symbol) & chromosome %in% in_chr
-        ][ 
-            , .(symbol, one_to_one, Risk_status, Group_status)
-        ])
-    }
-    summary_table <- unique(summary_table[
-        , Group_count := .N, by = .(one_to_one)
-    ][ 
-        , Risk_count := .N, by = .(one_to_one, Risk_status)
-    ][
-        , Split_count := .N, by = .(one_to_one, Group_status)
-    ][
-        order(one_to_one)
-    ])
-    if (type == 'Risk') {
-        summary_table <- unique(summary_table[
-            , .(one_to_one, Risk_status, Group_count, Risk_count)
-        ])
-        summary_table[ 
-            , one_to_one_x := as.numeric(factor(summary_table$one_to_one))
-        ]
-        summary_table <- summary_table[
-          order(one_to_one_x, Risk_status)
-        ]
-        summary_table[
-            , y_cumulative := cumsum(Risk_count), by = one_to_one_x
-        ][
-            , y_base := shift(y_cumulative), by = one_to_one_x
-        ][
-            , y_base := fifelse(is.na(y_base), 0, y_base)
-        ][
-            , how_many := .N, by = one_to_one_x
-        ][
-            , Status := Risk_status
-        ][ 
-            , Risk_status := NULL
-        ][ 
-            , Count := Risk_count
-        ][ 
-            , Risk_count := NULL
-        ][ 
-          , sep := fifelse(Status == 'By Breakpoint', 0.25, -0.25)
-        ]
-        phrase <- paste0('\n',mode,' by Breakpoint')
-        color_vec <- c(
-          "By Breakpoint" = "#F8766D",
-          "Not by Breakpoint" = "#00BFC4")
-    } 
-    if (type == 'Split') {
-        summary_table <- unique(summary_table <- summary_table[
-            , .(one_to_one, Group_status, Group_count, Split_count)
-        ])
-        summary_table[ 
-            , one_to_one_x := as.numeric(factor(summary_table$one_to_one))
-        ]
-        summary_table <- summary_table[
-          order(one_to_one_x, Group_status)
-        ]
-        summary_table[
-            , y_cumulative := cumsum(Split_count), by = one_to_one_x
-        ][
-            , y_base := shift(y_cumulative), by = one_to_one_x
-        ][
-            , y_base := fifelse(is.na(y_base), 0, y_base)
-        ][
-            , how_many := .N, by = one_to_one_x
-        ][
-            , Status := Group_status
-        ][ 
-            , Group_status := NULL
-        ][ 
-            , Count := Split_count
-        ][ 
-            , Split_count := NULL
-        ][ 
-          , sep := fifelse(Status == 'Not Applicable' , 0,fifelse(Status == 'Group Split', 0.25, -0.25))
-        ]
-        phrase <- paste0('\n',mode,' by Split')
-        color_vec <- c(
-          "Group Together" = "#00BFC4",
-          "Group Split" = "#1b9e77",
-          "Not Applicable" = "#7570b3")
-    }
-    buffer <- min(summary_table$Group_count) * 0.33
-    summary_table$buffer <- buffer
-    Group_breaks <- unique(summary_table$one_to_one)
-    plot <- ggplot()  +
-    geom_rect(
-        data = summary_table,
-        aes(xmin = one_to_one_x - 0.375, xmax = one_to_one_x + 0.375, ymin = y_base, ymax = y_cumulative, fill = Status)
-    ) + 
-    geom_text(
-        data = unique(summary_table[,.(one_to_one_x, Group_count, buffer)]),
-        aes(
-            x = one_to_one_x, 
-            y = Group_count * 1.1 + buffer, 
-            label = paste("Total:", Group_count, sep = ' ')
-        )
-    ) +
-    geom_text(
-        data = summary_table,
-        aes(
-            x = one_to_one_x + sep,
-            y = y_cumulative,
-           label = ifelse(how_many == 1, NA, Count)
-        )
-    ) +
-    scale_x_continuous(
-        breaks = rep(1:max(summary_table$one_to_one_x) ),
-        labels = Group_breaks
-    ) +
-    labs(
-        x = "Status",   
-        y = "Composition" 
-    ) +
-    scale_fill_manual(name = 'Status', 
-      values = color_vec
-    ) +
-    ggtitle(paste(species, label, phrase, sep = ' ')) +
-    theme(text = element_text(size = 14))
-    return(plot)
-}
-
 plot_attached_peaks <- function(input_table, chromosome_vec) {
   plot_dat <- input_table[ 
     chromosome %in% chromosome_vec
@@ -1267,4 +1128,137 @@ group_size_plot <- function(input_table, chromosome_vec, stat_type) {
   labs(y = "Log of Length") +
   theme(text = element_text(size = 14))
   return(plot)
+}
+
+plot_group_stats <- function(input_table, species, type, label, in_chr, mode = 'Group') {
+    if (mode == 'Group') {
+        summary_table <- unique(input_table[
+            !grepl("chr", symbol) & chromosome %in% in_chr
+        ][ 
+            , .(group_id, one_to_one, Risk_status, Group_status)
+        ])
+    }
+    if (mode == 'Gene') {
+        summary_table <- unique(input_table[
+            !grepl("chr", symbol) & chromosome %in% in_chr
+        ][ 
+            , .(symbol, one_to_one, Risk_status, Group_status)
+        ])
+    }
+    summary_table <- unique(summary_table[
+        , Group_count := .N, by = .(one_to_one)
+    ][ 
+        , Risk_count := .N, by = .(one_to_one, Risk_status)
+    ][
+        , Split_count := .N, by = .(one_to_one, Group_status)
+    ][
+        order(one_to_one)
+    ])
+    if (type == 'Risk') {
+        summary_table <- unique(summary_table[
+            , .(one_to_one, Risk_status, Group_count, Risk_count)
+        ])
+        summary_table[ 
+            , one_to_one_x := as.numeric(factor(summary_table$one_to_one))
+        ]
+        summary_table <- summary_table[
+          order(one_to_one_x, Risk_status)
+        ]
+        summary_table[
+            , y_cumulative := cumsum(Risk_count), by = one_to_one_x
+        ][
+            , y_base := shift(y_cumulative), by = one_to_one_x
+        ][
+            , y_base := fifelse(is.na(y_base), 0, y_base)
+        ][
+            , how_many := .N, by = one_to_one_x
+        ][
+            , Status := Risk_status
+        ][ 
+            , Risk_status := NULL
+        ][ 
+            , Count := Risk_count
+        ][ 
+            , Risk_count := NULL
+        ][ 
+          , sep := fifelse(Status == 'By Breakpoint', 0.25, -0.25)
+        ]
+        phrase <- paste0('\n',mode,' by Breakpoint')
+        color_vec <- c(
+          "By Breakpoint" = "#F8766D",
+          "Not by Breakpoint" = "#00BFC4")
+    } 
+    if (type == 'Split') {
+        summary_table <- unique(summary_table <- summary_table[
+            , .(one_to_one, Group_status, Group_count, Split_count)
+        ])
+        summary_table[ 
+            , one_to_one_x := as.numeric(factor(summary_table$one_to_one))
+        ]
+        summary_table <- summary_table[
+          order(one_to_one_x, Group_status)
+        ]
+        summary_table[
+            , y_cumulative := cumsum(Split_count), by = one_to_one_x
+        ][
+            , y_base := shift(y_cumulative), by = one_to_one_x
+        ][
+            , y_base := fifelse(is.na(y_base), 0, y_base)
+        ][
+            , how_many := .N, by = one_to_one_x
+        ][
+            , Status := Group_status
+        ][ 
+            , Group_status := NULL
+        ][ 
+            , Count := Split_count
+        ][ 
+            , Split_count := NULL
+        ][ 
+          , sep := fifelse(Status == 'Not Applicable' , 0,fifelse(Status == 'Group Split', 0.25, -0.25))
+        ]
+        phrase <- paste0('\n',mode,' by Split')
+        color_vec <- c(
+          "Group Together" = "#00BFC4",
+          "Group Split" = "#1b9e77",
+          "Not Applicable" = "#7570b3")
+    }
+    buffer <- min(summary_table$Group_count) * 0.33
+    summary_table$buffer <- buffer
+    Group_breaks <- unique(summary_table$one_to_one)
+    plot <- ggplot()  +
+    geom_rect(
+        data = summary_table,
+        aes(xmin = one_to_one_x - 0.375, xmax = one_to_one_x + 0.375, ymin = y_base, ymax = y_cumulative, fill = Status)
+    ) + 
+    geom_text(
+        data = unique(summary_table[,.(one_to_one_x, Group_count, buffer)]),
+        aes(
+            x = one_to_one_x, 
+            y = Group_count * 1.1 + buffer, 
+            label = paste("Total:", Group_count, sep = ' ')
+        )
+    ) +
+    geom_text(
+        data = summary_table,
+        aes(
+            x = one_to_one_x + sep,
+            y = y_cumulative,
+           label = ifelse(how_many == 1, NA, Count)
+        )
+    ) +
+    scale_x_continuous(
+        breaks = rep(1:max(summary_table$one_to_one_x) ),
+        labels = Group_breaks
+    ) +
+    labs(
+        x = "Status",   
+        y = "Composition" 
+    ) +
+    scale_fill_manual(name = 'Status', 
+      values = color_vec
+    ) +
+    ggtitle(paste(species, label, phrase, sep = ' ')) +
+    theme(text = element_text(size = 14))
+    return(plot)
 }

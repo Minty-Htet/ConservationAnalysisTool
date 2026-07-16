@@ -4,7 +4,15 @@
 \alias{run_app}
 \title{Run the Shiny App}
 \usage{
-run_app(browser = FALSE, version = "Two")
+run_app(browser = FALSE, version = "One")
+}
+\arguments{
+\item{browser}{TRUE or FALSE. Wherether you want to open browser or not.}
+
+\item{version}{Default is 'One'. The two way is 'Two'}
+}
+\value{
+The shiny app
 }
 \description{
 Run the Shiny App

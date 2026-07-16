@@ -2,7 +2,19 @@
 #' @importFrom data.table tstrsplit
 #' @importFrom data.table fifelse
 #' @importFrom data.table copy
+#' @importFrom DT renderDT
+#' @importFrom DT datatable
 #' @importFrom stringr str_split
+#' @importFrom ggnewscale new_scale_color
+#' @importFrom ggplot2 scale_fill_manual
+#' @importFrom ggplot2 scale_color_manual
+#' @importFrom ggplot2 coord_cartesian
+#' @importFrom grid arrow unit
+#' @importFrom shinybusy show_modal_spinner
+#' @importFrom shinybusy remove_modal_spinner
+#' @importFrom stats median 
+#' @importFrom stats na.omit
+#' @importFrom utils write.csv
 #' @keywords internal
 
 app_server <- function(input, output, session) {

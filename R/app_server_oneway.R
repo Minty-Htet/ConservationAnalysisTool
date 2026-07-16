@@ -2,12 +2,19 @@
 #' @importFrom data.table tstrsplit
 #' @importFrom data.table fifelse
 #' @importFrom data.table copy
+#' @importFrom DT renderDT
+#' @importFrom DT datatable
 #' @importFrom stringr str_split
 #' @importFrom ggnewscale new_scale_color
 #' @importFrom ggplot2 scale_fill_manual
 #' @importFrom ggplot2 scale_color_manual
 #' @importFrom ggplot2 coord_cartesian
 #' @importFrom grid arrow unit
+#' @importFrom shinybusy show_modal_spinner
+#' @importFrom shinybusy remove_modal_spinner
+#' @importFrom stats median 
+#' @importFrom stats na.omit
+#' @importFrom utils write.csv
 #' @keywords internal
 
 app_server_oneway <- function(input, output, session) {
@@ -198,11 +205,6 @@ app_server_oneway <- function(input, output, session) {
     return(ex_plot)
   })
 
-  # Message shown when starting the thing  
-  observeEvent(input$go_button, {
-    showNotification("Running. Will take a minute.", type = "message", duration = NULL)
-  })
-
   # Choose chromosomes of interest
   chosen_chr <- reactive({
     if ("All" %in% input$chromosome) {
@@ -352,6 +354,15 @@ app_server_oneway <- function(input, output, session) {
     return(heatmap_for_plot)
   })
   ## End Computations
+  ## Spinner
+  observeEvent(input$go_button, {
+    show_modal_spinner(
+      spin = 'cube-grid',
+      text = 'Running Background Computation. Will take a minute.'
+    )
+    isolate({heatmap_matrices()})
+    remove_modal_spinner()
+  })
 
   ## Reactive Table for Positions
   position_groups <- reactive({
@@ -453,8 +464,11 @@ app_server_oneway <- function(input, output, session) {
     ][
       , List1_group := as.character(group_id)
     ][ 
-      , .(symbol, symbol_o, List1_group, position, chromosome, start, end)
+      , .(symbol, symbol_o, List1_group, one_to_one, Group_status, position, chromosome, start, end)
     ]
+    colnames(pos_groups) <- c(
+      'symbol', 'Ortho Symbol', 'List1_group', 'Sequence Stat', 'Location Stat', 
+      'Position', 'Chr', 'Start', 'End')
     
     return(
       DT::datatable(pos_groups, 

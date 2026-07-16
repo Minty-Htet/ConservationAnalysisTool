@@ -8,5 +8,9 @@ utils::globalVariables(c(
   "mm_cumulative_df", "mmusculus_chromosome", "mouse_all_startend",
   "mouse_to_human_genes", "n_oto", "n_unique_symbols", "no_OnetoOne_ortho",
   "one_to_one", "ortho_found", "pmid", "position", "seqnames", "start", "start2", "start_dist",
-  "start_o", "symbol_o", "upper_end_o"
+  "start_o", "symbol_o", "upper_end_o", "::",  ".", ":=", ".SD", 
+  "symbol", "symbol2", "id", "id2",
+  "chromosome", "chromosome2", 
+  "in_group", "distance", 
+  "group_id", "group_id2"
 ))

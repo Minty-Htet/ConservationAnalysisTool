@@ -13,7 +13,8 @@ run_CAT(
   disttobreak = 1e+05,
   dist_to_group = 50000,
   exp_rocr = 5e+05,
-  threshold = 0.5
+  threshold = 0.5,
+  chain_path = NULL
 )
 }
 \arguments{
@@ -26,6 +27,14 @@ run_CAT(
 \item{peaks}{A bed file like dataframe. Requires a "chromosome", "start", "end", "symbol". The symbol is just a unique id for the peak. Requires internet for the first time you run this to download graph files from UCSC}
 
 \item{disttobreak}{How close should the group be to an evolutionary breakpoint to be considered at risk?}
+
+\item{dist_to_group}{How close a peak must be to the outside edges of a group to be considered part of said group}
+
+\item{exp_rocr}{Expected size of regions of co-regulation (Usually the mean size of the TADs)}
+
+\item{threshold}{Size of the region in the comparator genome when querying regions in liftover at which you say there is an orthologous region}
+
+\item{chain_path}{A path to a directory containing chain files if you have them}
 }
 \value{
 Tables summarizing 1) groups and proximity to breakpoints, 2-3) percentage of input genes we found one to one orthologs for, 4) the 1st table with cumulative position adjustment for plotting purposes, 6) long form matrix of distances between genes

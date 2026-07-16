@@ -1,3 +1,6 @@
+#' @importFrom shinyjs useShinyjs
+#' @importFrom DT DTOutput
+
 app_ui_oneway <- function() {
   fluidPage(
     # 1. Add busy spinner and global styles
@@ -28,7 +31,7 @@ app_ui_oneway <- function() {
       "))
     ),
     
-    titlePanel("Ortholog Dashboard"),
+    titlePanel("Conservation Analysis Tool"),
     
     sidebarLayout(
       ## Side bar Panel for on the fly Chromosome Selection
@@ -355,7 +358,7 @@ app_ui_oneway <- function() {
               column(
                 width = 4,
                 tags$div(
-                  h4("Click on the heatmaps to see group IDs"),
+                  h4("Click on the heatmaps to see group IDs. See Table at bottom of page for more info."),
                   DT::DTOutput('hovered_groups_table')
                 ),
                 sliderInput(

@@ -109,6 +109,7 @@ run_liftover <- function(peaks, chain, threshold = 0.5) {
 #' bed file like data frame between genomes
 #' @param peaks A bed file like dataframe. Requires a "chromosome", "start", "end", "symbol". The symbol is just a unique id for the peak
 #' @param genome A genome version. Mmusculus has mm39 and mm10 options. Hsapiens has hg38 option.
+#' @param threshold Ratio (0 to 1) of resulting chain to peak query length which must be met in order to be considered an orthologous peak
 #' @param chain_path A path to where you store chain files if you have them
 #' @return A list containing tables of 1) the mouse to human coordinates, 2) the mm10 to mm39 or mm39 to mm10 coordinates, 3) the original table with new columns showing the other species' coodinates, 4) the coordinates which failed to map to the other species
 #' @keywords export
