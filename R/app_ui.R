@@ -159,7 +159,7 @@ app_ui <- function() {
                 width = 12,
                 markdown(
                   "
-                  ### Please feel free to read our paper and check the [GitHub](https://github.com/Minty-Htet/ConservationAnalysisTool_Shiny).
+                  ### Please feel free to read our paper and check the [GitHub](https://github.com/Minty-Htet/ConservationAnalysisTool).
                   "
                 )
               )
