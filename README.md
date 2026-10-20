@@ -97,10 +97,10 @@ run_app()
 ```
 
 # Demo
-Feel free to use the example datasets under [tests](./tests/ex_pages) :<br>
-mm_summary_table.csv has a list of genes. Simply open the csv with excel and copy paste the column with gene names into the box for genes.<br>
-Mouse_upreg_LPS6hr_85all is the list of accessible region peaks associated with mouse macrophage activation. mm10 + mm39 versions available.<br>
-Feel free to open the .txt files with excel and copy paste the column with peak names into the box for peaks.
+Feel free to use the example datasets under [tests](./tests/) :<br>
+TestCase_WT_CD4_HighvsLow_Up_DN.xlsx has a list of genes. Simply open the csv with excel and copy paste the column with gene names into the box for genes.<br>
+TestCase_Up_aKG_CTCF_peaks_mm39.xlsx is the list of accessible region peaks associated with the genes.<br>
+Feel free to open the files with excel and copy paste the column with peak names into the box for peaks.
 
 # Results
 The demo list of 1749 genes should take about 16 seconds to run on the website: https://weinmannlab.shinyapps.io/ConservationAnalysisTool/ <br>
