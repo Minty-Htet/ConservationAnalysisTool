@@ -11,6 +11,7 @@ Depends: R (>= 3.5)
 Imports: data.table, DT, forcats, GenomicRanges, grid, ggnewscale, ggplot2, igraph, IRanges, pkgload, R.utils, rappdirs, rtracklayer, stringr, shiny, shinybusy, shinyjs
 Remotes:
     bioc::GenomicRanges,
+    bioc::GenomeInfoDb
     bioc::IRanges,
     bioc::rtracklayer
 LazyData: true
