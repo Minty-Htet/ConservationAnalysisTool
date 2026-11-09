@@ -1,18 +1,28 @@
 #' @importFrom data.table as.data.table
 #' @keywords internal
 
-plot_tab_CAT <- function(chromosome_vec, cat_list) {
+## status_keep: NULL keeps every row; otherwise a character vector of Group_Status
+## values to keep (character(0) keeps nothing).
+## The status logic mirrors risky_plot() in plot_fig_CAT.R so the table and the plot agree.
+plot_tab_CAT <- function(chromosome_vec, cat_list, status_keep = NULL) {
     show_table <- as.data.table(cat_list)[
       chromosome %in% chromosome_vec & symbol != ""
     ][
       , group_id := as.character(group_id)
-    ][ 
+    ][
       , status := fifelse(Risk_status == "By Breakpoint" & Group_status == "Group Split", "By Breakpoint and Split",
         fifelse(Risk_status == "By Breakpoint" & Group_status == "Group Together", "By Breakpoint",
+        fifelse(Risk_status == 'By Breakpoint' & Group_status == 'Not Applicable', 'By Breakpoint',
         fifelse(Risk_status == "Not by Breakpoint" & Group_status == "Group Split", "Group Split",
-        Group_status)))
+        Group_status))))
     ][
-      , .(symbol, symbol_o, group_id, chromosome_o, start_o, end_o, chromosome, start, end, status, Risk_status, Group_status)
+      , status := fifelse(is.na(status), "Unattached Peak", status)
+    ]
+    if (!is.null(status_keep)) {
+      show_table <- show_table[status %in% status_keep]
+    }
+    show_table <- show_table[
+      , .(symbol,symbol_o, group_id, chromosome_o, start_o, end_o, chromosome, start, end, status, Risk_status, Group_status)
     ]
     colnames(show_table) <- c('gene_or_peak_symbol', 'ortholog_symbol', 'group_id', 
     'ortholog_chromosome', 'ortholog_start', 'ortholog_end', 'chromosome', 'start', 'end', 

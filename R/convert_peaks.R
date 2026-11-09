@@ -3,9 +3,11 @@
 #' @importFrom data.table setcolorder
 #' @importFrom data.table setnames
 #' @importFrom GenomicRanges GRanges
+#' @importFrom GenomeInfoDb seqnames
 #' @importFrom IRanges IRanges
 #' @importFrom rtracklayer liftOver
 #' @importFrom rtracklayer import.chain
+#' @importFrom data.table :=
 #' @keywords internal
 # Choose chains
 # Import chain files
@@ -25,84 +27,86 @@ choose_chains <-  function(genome, chain_path) {
     return(chain)
 }
 
-# liftover with rtracklayer
-# Must do manual smoothing
-# liftover with rtracklayer
-# Must do manual smoothing
 #' @keywords internal
-run_liftover <- function(peaks, chain, threshold = 0.5) {
-    liftover_dt <- data.table(start = "", end = "", chromosome = "", symbol = "")
-    peaks <- as.data.frame(peaks)
-    peaks$total_len <- peaks$end - peaks$start
-    lift_result <- as.data.table(
-        as.data.frame(liftOver(
-        GRanges(seqnames = peaks[,1], ranges = IRanges(start = peaks[,2], end = peaks[,3])),
-        chain
-    )))[ 
-        , .(seqnames, start, end)
-    ][
-        order(seqnames, start)
-    ]
-    if(nrow(lift_result) > 0) { # If there are ortholog hits
-        lift_result <- lift_result[
-            , total_start := min(start), by = .(seqnames) # Smooth the start sites
-            ][ 
-            , total_end := max(end), by = .(seqnames) # Smooth the end sites
-            ][  
-            , adj_chromosome := seqnames
-            ][ 
-            , adj_symbol := peaks$symbol # Label the peak with ID
-            ][ 
-                as.data.table(peaks)[, .(symbol, total_len)], on = .(adj_symbol = symbol)
-            ][ 
-                ,len := total_end - total_start
-            ][
-                , next_start := shift(start, type = 'lead')
-            ][
-                , next_start := fifelse(is.na(next_start), end, next_start)
-            ][
-                , dist_to_nextstart := next_start - end
-            ][
-              , fragment_num := cumsum(shift(dist_to_nextstart > len, fill = FALSE)), by = .(adj_symbol)
-            ][
-                , adj_start := min(start), by = .(fragment_num)
-            ][
-                , adj_end := max(end), by = .(fragment_num)
-            ][
-                , frag_len := adj_end - adj_start, by = .(fragment_num)
-            ][
-                , max_frag_len := max(frag_len), by = .(fragment_num)
-            ][
-                frag_len == max_frag_len
-            ][ 
-                frag_len > threshold*total_len
-            ][
-                , .(adj_chromosome, adj_start, adj_end, adj_symbol)
-            ]
-    } else { # If no ortholog hits
-        lift_result <- lift_result[ 
-            , adj_start := start # Rename
-            ][ 
-            , adj_end := end 
-            ][  
-            , adj_chromosome := seqnames
-            ][ 
-            , adj_symbol := peaks$symbol 
-            ]
+choose_chains_rds <- function(genome) {
+    load_chain <- function(name) {
+        readRDS(system.file("extdata", paste0(name, ".rds"),
+                            package = "ConservationAnalysisTool", mustWork = TRUE))
     }
-    adj_cols <- grep("^adj_", names(lift_result), value = TRUE)
-    lift_result <- unique(lift_result[, ..adj_cols])
-    data.table::setnames(lift_result, sub("^adj_", "", names(lift_result)))
-    lift_result <- lift_result[
-        , .(chromosome, start, end, symbol)
-    ]
-    ## Take only the first entry if there ever was a multi-hit where the fragments are of the same length.
-    if (length(lift_result$symbol > 1)) {
-        lift_result <- lift_result[1] 
-        return(lift_result)
-    } else {
-        return(lift_result)
-    } 
+    chain <- list()
+    if (genome == "mm39") {
+        chain[[1]] <- load_chain("mm39_to_mm10")
+        chain[[2]] <- load_chain("mm10_to_hg38")
+    }
+    if (genome == "mm10") {
+        chain[[1]] <- load_chain("mm10_to_mm39")   
+        chain[[2]] <- load_chain("mm10_to_hg38")
+    }
+    if (genome == "hg38") {
+        chain[[1]] <- load_chain("hg38_to_mm39")
+    }
+    return(chain)
+}
+
+#' @keywords internal
+run_liftover <- function(peaks, chain, threshold = 0.5, max_gap = Inf) {
+  empty <- data.table::data.table(
+    chromosome = character(), start = integer(),
+    end = integer(), symbol = character()
+  )
+ 
+  peaks <- as.data.frame(peaks)
+  n <- nrow(peaks)
+  if (n == 0L) return(empty)
+ 
+  sym_vec <- if ("symbol" %in% names(peaks)) {
+    as.character(peaks$symbol)
+  } else {
+    as.character(seq_len(n))
+  }
+  chr <- as.character(peaks[[1]])
+  st  <- as.integer(peaks[[2]])
+  en  <- as.integer(peaks[[3]])
+  len_vec <- en - st                       # original width (0-based, half-open)
+ 
+  # One liftOver call for every peak. +1L converts 0-based start to 1-based.
+  gr     <- GenomicRanges::GRanges(chr, IRanges::IRanges(start = st + 1L, end = en))
+  lifted <- rtracklayer::liftOver(gr, chain)
+  out    <- unlist(lifted, use.names = FALSE)
+  if (length(out) == 0L) return(empty)
+ 
+  # One row per lifted piece, tied to its input peak by index (not by symbol).
+  pieces <- data.table::data.table(
+    peak       = rep(seq_along(lifted), lengths(lifted)),
+    chromosome = as.character(GenomeInfoDb::seqnames(out)),
+    start      = BiocGenerics::start(out) - 1L,   # back to 0-based
+    end        = BiocGenerics::end(out)
+  )
+  data.table::setorder(pieces, peak, chromosome, start)
+ 
+  # Gap to the previous piece, computed within each peak and chromosome only,
+  # so nothing leaks across peaks or chromosomes.
+  pieces[, gap := start - data.table::shift(end), by = .(peak, chromosome)]
+ 
+  # A new fragment starts at the first piece on each chromosome, or after a
+  # gap larger than max_gap.
+  pieces[, frag := cumsum(is.na(gap) | gap > max_gap), by = peak]
+ 
+  frags <- pieces[, .(chromosome = chromosome[1L],
+                      start = min(start),
+                      end   = max(end)),
+                  by = .(peak, frag)]
+  frags[, frag_len := end - start]
+ 
+  # Largest fragment per peak (ties: first by chromosome/position).
+  data.table::setorder(frags, peak, -frag_len)
+  best <- unique(frags, by = "peak")
+ 
+  best[, `:=`(symbol = sym_vec[peak], total_len = len_vec[peak])]
+  best <- best[frag_len > threshold * total_len]
+  data.table::setorder(best, peak)
+ 
+  best[, .(chromosome, start, end, symbol)]
 }
 
 #' Convert genomic positions formatted in
@@ -114,75 +118,49 @@ run_liftover <- function(peaks, chain, threshold = 0.5) {
 #' @return A list containing tables of 1) the mouse to human coordinates, 2) the mm10 to mm39 or mm39 to mm10 coordinates, 3) the original table with new columns showing the other species' coodinates, 4) the coordinates which failed to map to the other species
 #' @keywords export
 #' @export
-convert_peaks <- function(peaks, genome, threshold = 0.5, chain_path = NULL) {
-    # Choose the chains needed
-    chain <- choose_chains(genome, chain_path)
-    # Make a list of liftover results
-    # The first is the within species conversions
-    # The second is the between species conversions
-    # Or if its human to mouse its just between species
-    liftover_list <- list(
-        data.frame(chromosome = "", start = "", end = "", symbol = ""),
-        data.frame(chromosome = "", start = "", end = "", symbol = "")
-    )
-    peaks <- as.data.frame(peaks)
-    peaks$start <- as.numeric(peaks$start)
-    peaks$end <- as.numeric(peaks$end)
-    if (genome == "mm39") {
-        for (x in 1:length(peaks[,4])) {
-            mm39ToMm10 <- run_liftover(peaks[x,], chain[[1]], threshold) #mm39 to mm10
-            mm10ToHg38 <- run_liftover(mm39ToMm10, chain[[2]], threshold) #mm10 to hg38
-            liftover_list[[2]] <- unique(rbind(liftover_list[[2]], mm39ToMm10))
-            liftover_list[[1]] <- unique(rbind(liftover_list[[1]], mm10ToHg38))
-            }
-        }
-    if (genome == "mm10") {
-        for (x in 1:length(peaks[,4])) {
-            mm10ToMm39 <- run_liftover(peaks[x,], chain[[1]], threshold) #mm10 to mm39
-            mm10ToHg38 <- run_liftover(peaks[x,], chain[[2]], threshold) #mm10 to hg38
-            liftover_list[[2]] <- unique(rbind(liftover_list[[2]], mm10ToMm39))
-            liftover_list[[1]] <- unique(rbind(liftover_list[[1]], mm10ToHg38))
-            }
-        }
-    if (genome == "hg38") { 
-        for (x in 1:length(peaks[,4])) {
-            hg38ToMm39 <- run_liftover(peaks[x,], chain[[1]], threshold) #hg38 to mm39
-            liftover_list[[1]] <- unique(rbind(liftover_list[[1]], hg38ToMm39))
-            }
-        }
-    colnames(liftover_list[[1]]) <- c("chromosome_o", "start_o", "end_o", "symbol") # label the ortholog results
-    if (genome == 'mm10') {
-        liftover_list[[3]] <- as.data.table(liftover_list[[1]])[  
-            as.data.table(liftover_list[[2]]), on = .NATURAL # Join with the original peaks table
-        ][ 
-            , symbol_o := paste(chromosome_o,start_o,end_o, sep = ".")
-        ][
-            , start := as.numeric(start)
-        ][ 
-            , end := as.numeric(end)
-        ][
-            , start_o := as.numeric(start_o)
-        ][ 
-            , end_o := as.numeric(end_o)
-        ][
-            symbol != ""
-        ]
-    } else {
-        liftover_list[[3]] <- as.data.table(liftover_list[[1]])[  
-            as.data.table(peaks), on = .NATURAL # Join with the original peaks table
-        ][ 
-            , symbol_o := paste(chromosome_o,start_o,end_o, sep = ".")
-        ][
-            , start := as.numeric(start)
-        ][ 
-            , end := as.numeric(end)
-        ][
-            , start_o := as.numeric(start_o)
-        ][ 
-            , end_o := as.numeric(end_o)
-        ][
-            symbol != ""
-        ]
-    }
-    return(liftover_list)
+convert_peaks <- function(peaks, genome = c("mm39", "mm10", "hg38"),
+                          threshold = 0.5, chain_path = NULL) {
+  genome <- match.arg(genome)
+  chain  <- choose_chains_rds(genome)
+ 
+  # copy() so we never modify the caller's table by reference
+  peaks <- data.table::copy(data.table::as.data.table(peaks))
+  if (!"symbol" %in% names(peaks)) stop("`peaks` needs a `symbol` column.")
+  if (anyDuplicated(peaks$symbol)) {
+    warning("Duplicate symbols in `peaks`; the join on symbol will multiply rows.")
+  }
+  peaks[, `:=`(start = as.numeric(start), end = as.numeric(end))]
+ 
+  empty <- data.table::data.table(
+    chromosome = character(), start = integer(),
+    end = integer(), symbol = character()
+  )
+  within  <- empty   # within-species conversion (mm10 <-> mm39)
+  between <- empty   # between-species conversion (to hg38 / from hg38)
+ 
+  if (genome == "mm39") {
+    within  <- run_liftover(peaks,  chain[[1]], threshold)  # mm39 -> mm10
+    between <- run_liftover(within, chain[[2]], threshold)  # mm10 -> hg38
+  } else if (genome == "mm10") {
+    within  <- run_liftover(peaks, chain[[1]], threshold)   # mm10 -> mm39
+    between <- run_liftover(peaks, chain[[2]], threshold)   # mm10 -> hg38
+  } else {                                                  # hg38
+    between <- run_liftover(peaks, chain[[1]], threshold)   # hg38 -> mm39
+  }
+ 
+  data.table::setnames(between, c("chromosome_o", "start_o", "end_o", "symbol"))
+ 
+  # For mm10 the "original" side is the mm39 conversion; otherwise the input.
+  base <- if (genome == "mm10") within else peaks
+ 
+  # Right join: keeps every row of `base`; peaks with no ortholog get NA in *_o.
+  result <- between[base, on = "symbol"]
+ 
+  # Build the ID while start_o/end_o are still integers, so large values
+  # are not formatted in scientific notation (e.g. 1e+08).
+  result[, symbol_o := paste(chromosome_o, start_o, end_o, sep = ".")]
+  result[, `:=`(start   = as.numeric(start),   end   = as.numeric(end),
+                start_o = as.numeric(start_o), end_o = as.numeric(end_o))]
+ 
+  return(result)
 }

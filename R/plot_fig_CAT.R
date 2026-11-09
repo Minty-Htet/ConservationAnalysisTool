@@ -33,7 +33,7 @@
 #' @keywords internal
 
 ## Plot for Risk region
-risky_plot <- function(species, chromosome_vec, front_df1, front_df2, background = mouse_to_human_genes, mode = 'All', way = 'One') {
+risky_plot <- function(species, chromosome_vec, front_df1, front_df2, background = mouse_to_human_genes, mode = 'All', way = 'One', status_keep = NULL) {
   back_df <- copy(mouse_to_human_genes)
   back_df <- as.data.table(back_df)[
     , .(mmusculus_gene_name, hsapiens_gene_name)
@@ -145,6 +145,12 @@ risky_plot <- function(species, chromosome_vec, front_df1, front_df2, background
   fil_back <- back_df[chromosome %in% chromosome_vec & !grepl("chr", symbol)]
   up_df1 <- up_df1[chromosome %in% chromosome_vec]
   down_df1 <- down_df1[chromosome %in% chromosome_vec]
+  ## Optional filter on the combined Group Status. NULL keeps everything.
+  ## Background ortholog lines (fil_back) are intentionally not filtered.
+  if (!is.null(status_keep)) {
+    up_df1 <- up_df1[status %in% status_keep]
+    down_df1 <- down_df1[status %in% status_keep]
+  }
 
   noto_space <- max(fil_back$mid_o) * 1.3
   yoto_space <- max(fil_back$mid_o) * 0.1

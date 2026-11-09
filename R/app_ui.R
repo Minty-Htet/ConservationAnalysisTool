@@ -153,7 +153,7 @@ app_ui <- function() {
             )
           ),
           tabPanel(
-            "Instructions",
+            "Background Concepts",
             fluidRow(
               column(
                 width = 12,

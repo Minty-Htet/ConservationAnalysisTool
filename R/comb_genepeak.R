@@ -42,7 +42,7 @@ comb_genepeak <- function(species, genome, gene_vec, peak_vec = empty_peak, dist
         ## Convert peaks using liftover
         peaks_part <- convert_peaks(peak_vec, genome, threshold, chain_path)
         ## Prepare for assigning group ids to peaks
-        chr_rows <- peaks_part[[3]][
+        chr_rows <- peaks_part[
             , pmid := (start + end) / 2
         ]
     }

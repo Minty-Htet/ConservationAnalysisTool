@@ -145,7 +145,7 @@ app_ui_oneway <- function() {
             )
           ),
           tabPanel(
-            "Instructions",
+            "Background Concepts",
             fluidRow(
               column(
                 width = 12,
@@ -308,6 +308,16 @@ app_ui_oneway <- function() {
                   inputId = "disttobreak",
                   label = "Distance at which regulatory groups are considered AT RISK of crossing over EVOLUTIONARY BREAKPOINT.",
                   min = 0, max = 1000000, value = 100000, step = 10000
+                )
+              ),
+              column(
+                width = 4,
+                ## Choices are filled in by the server from the Group Status
+                ## values currently present in the table and plot.
+                selectInput(
+                  'status_filter',
+                  'Group Status to show in the plot and table: (You can unselect by clicking on the choice and hitting delete. Reselect by clicking on the menu below)',
+                  choices = NULL, multiple = TRUE, width = "100%"
                 )
               ),
               column(

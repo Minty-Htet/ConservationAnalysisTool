@@ -427,11 +427,52 @@ app_server_oneway <- function(input, output, session) {
     render1_table <- plot_tab_CAT(chosen_chr(), input1_tables()[1] )
     return(render1_table)
   })
-  output$risk_render1 <- DT::renderDT({
+
+  ## Group Status selector.
+  ## status_selected is the server-side source of truth for the selection.
+  ## NULL = selector not initialised yet (no filtering); character(0) = user cleared it (show nothing).
+  status_selected <- reactiveVal(NULL)
+  status_known <- reactiveVal(character(0))
+
+  ## Group Status values currently present (follows chromosomes and disttobreak)
+  status_choices <- reactive({
     req(render1())
-    return( 
+    present <- unique(render1()$Group_Status)
+    preferred <- c(
+      "By Breakpoint and Split", "By Breakpoint", "Group Split",
+      "Group Together", "Not Applicable", "Unattached Peak"
+    )
+    c(intersect(preferred, present), setdiff(present, preferred))
+  })
+
+  ## Refresh choices. Keep what the user had selected, and auto-select
+  ## statuses that were not available before.
+  observeEvent(status_choices(), {
+    choices <- status_choices()
+    keep <- intersect(status_selected(), choices)
+    brand_new <- setdiff(choices, status_known())
+    selected <- intersect(choices, union(keep, brand_new))
+    status_known(choices)
+    status_selected(selected)
+    updateSelectInput(session, "status_filter", choices = choices, selected = selected)
+  })
+
+  ## Record user changes (a cleared selector arrives as NULL)
+  observeEvent(input$status_filter, {
+    status_selected(if (is.null(input$status_filter)) character(0) else input$status_filter)
+  }, ignoreNULL = FALSE, ignoreInit = TRUE)
+
+  ## Table after the Group Status filter. render1() stays unfiltered to feed the choices.
+  render1_filtered <- reactive({
+    req(input1_tables())
+    plot_tab_CAT(chosen_chr(), input1_tables()[1], status_keep = status_selected())
+  })
+
+  output$risk_render1 <- DT::renderDT({
+    req(render1_filtered())
+    return(
       DT::datatable(
-        render1(), 
+        render1_filtered(),
         rownames = FALSE,
   options = list(
   dom = 't',
@@ -450,7 +491,7 @@ app_server_oneway <- function(input, output, session) {
       paste("List1table", Sys.Date(), ".csv", sep = "_")
     },
     content = function(file) {
-      write.csv(render1(), file, row.names = FALSE)
+      write.csv(render1_filtered(), file, row.names = FALSE)
     }
   )
 
@@ -542,7 +583,10 @@ app_server_oneway <- function(input, output, session) {
   ## Rendering Plots
   ## Risky Plot
   output$risk_plot <- renderPlot({
-    return(risky_plot(input$species, chosen_chr(), input1_tables()[[1]], input1_tables()[[1]]))
+    return(risky_plot(
+      input$species, chosen_chr(), input1_tables()[[1]], input1_tables()[[1]],
+      status_keep = status_selected()
+    ))
   })
 
   ## Heatmap Plots
