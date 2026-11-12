@@ -48,6 +48,7 @@ choose_chains_rds <- function(genome) {
     return(chain)
 }
 
+## Re-written for speed with the help of Claude
 #' @keywords internal
 run_liftover <- function(peaks, chain, threshold = 0.5, max_gap = Inf) {
   empty <- data.table::data.table(
@@ -67,19 +68,18 @@ run_liftover <- function(peaks, chain, threshold = 0.5, max_gap = Inf) {
   chr <- as.character(peaks[[1]])
   st  <- as.integer(peaks[[2]])
   en  <- as.integer(peaks[[3]])
-  len_vec <- en - st                       # original width (0-based, half-open)
+  len_vec <- en - st                      
  
-  # One liftOver call for every peak. +1L converts 0-based start to 1-based.
+  # Liftover for all peaks
   gr     <- GenomicRanges::GRanges(chr, IRanges::IRanges(start = st + 1L, end = en))
   lifted <- rtracklayer::liftOver(gr, chain)
   out    <- unlist(lifted, use.names = FALSE)
   if (length(out) == 0L) return(empty)
  
-  # One row per lifted piece, tied to its input peak by index (not by symbol).
   pieces <- data.table::data.table(
     peak       = rep(seq_along(lifted), lengths(lifted)),
     chromosome = as.character(GenomeInfoDb::seqnames(out)),
-    start      = BiocGenerics::start(out) - 1L,   # back to 0-based
+    start      = BiocGenerics::start(out) - 1L, 
     end        = BiocGenerics::end(out)
   )
   data.table::setorder(pieces, peak, chromosome, start)
@@ -109,6 +109,8 @@ run_liftover <- function(peaks, chain, threshold = 0.5, max_gap = Inf) {
   best[, .(chromosome, start, end, symbol)]
 }
 
+
+## Re-written with Claude for optimization
 #' Convert genomic positions formatted in
 #' bed file like data frame between genomes
 #' @param peaks A bed file like dataframe. Requires a "chromosome", "start", "end", "symbol". The symbol is just a unique id for the peak

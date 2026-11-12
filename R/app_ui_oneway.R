@@ -140,6 +140,29 @@ app_ui_oneway <- function() {
                 )
               )
             ),
+            ## Motif analysis options
+            fluidRow(
+              column(
+                width = 6,
+                selectInput(
+                  'do_motif', 'Do motif analysis?',
+                  choices = c("No", "Yes"), selected = "No",
+                  width = "100%"
+                )
+              ),
+              column(
+                width = 6,
+                conditionalPanel(
+                  condition = "input.do_motif === 'Yes'",
+                  selectizeInput(
+                    'tf_names', 'Input list of transcription factors',
+                    choices = c("All Hs TF JASPAR 2022", hg_motifs), multiple = TRUE,
+                    width = "100%",
+                    options = list(placeholder = "Select or type a transcription factor")
+                  )
+                )
+              )
+            ),
             fluidRow(
               actionButton("go_button", "GO")
             )
@@ -337,9 +360,20 @@ app_ui_oneway <- function() {
                   DT::DTOutput('risk_render1')
                 )
               )
+            ),
+            fluidRow(
+              column(
+                width = 6,
+                h4("Motifs Reference peaks"),
+                DT::DTOutput('motif_ref_table')
+              ),
+              column(
+                width = 6,
+                h4("Motifs Orthologous peaks"),
+                DT::DTOutput('motif_ortho_table')
+              )
             )
           ),
-          
           tabPanel(
             "Grouping Heatmaps",
             fluidRow(

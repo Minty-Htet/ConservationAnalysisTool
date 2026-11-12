@@ -136,3 +136,12 @@
 #' }
 #' @source http://useast.ensembl.org/info/about/publications.html
 "mouse_to_human_genes"
+#' Human transcription factors available for motif analysis
+#' Unique names of JASPAR 2022 CORE vertebrate motifs for human (taxon 9606)
+#' @format ## `hg_motifs`
+#' A sorted character vector with 647 entries:
+#' \describe{
+#'      \item{CTCF}{Transcription factor name as it appears in JASPAR}
+#'   ...
+#' }
+"hg_motifs"

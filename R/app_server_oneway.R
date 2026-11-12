@@ -1,7 +1,4 @@
-#' @importFrom data.table data.table
-#' @importFrom data.table tstrsplit
-#' @importFrom data.table fifelse
-#' @importFrom data.table copy
+#' @import data.table
 #' @importFrom DT renderDT
 #' @importFrom DT datatable
 #' @importFrom stringr str_split
@@ -361,6 +358,9 @@ app_server_oneway <- function(input, output, session) {
       text = 'Running Background Computation. Will take a minute.'
     )
     isolate({heatmap_matrices()})
+    ## Motif search runs here too so it finishes before the spinner closes.
+    ## try(): req() inside motifs_all stops silently when motifs are off or no TFs are chosen.
+    try(isolate({motifs_all()}), silent = TRUE)
     remove_modal_spinner()
   })
 
@@ -465,7 +465,65 @@ app_server_oneway <- function(input, output, session) {
   ## Table after the Group Status filter. render1() stays unfiltered to feed the choices.
   render1_filtered <- reactive({
     req(input1_tables())
-    plot_tab_CAT(chosen_chr(), input1_tables()[1], status_keep = status_selected())
+    plot_tab_CAT(chosen_chr(), input1_tables()[[1]], status_keep = status_selected())
+  })
+
+  ## Motif analysis on all peaks
+  ## Computed on GO (forced inside the GO spinner observer), not when a tab is opened.
+  motifs_all <- eventReactive(input$go_button, {
+    req(input$do_motif == "Yes")
+    req(input$tf_names)
+    req(input1_tables())
+    ## Plain data.frame indexing (no data.table NSE): inside eventReactive the
+    ## data.table `[` has been evaluating as a data.frame, so `symbol` was not found.
+    peaks_tab <- as.data.frame(input1_tables()[[1]])[
+      , c("chromosome", "start", "end", "symbol", "chromosome_o", "start_o", "end_o")
+    ]
+    peaks_tab <- as.data.table(peaks_tab[grepl("chr", peaks_tab$symbol), , drop = FALSE])
+    req(nrow(peaks_tab) > 0)
+    list_hits <- wrapper_tf(
+      genome = chosen_genome(),
+      render_dt = peaks_tab,
+      tf_names = input$tf_names
+    )
+    return(list_hits)
+  })
+
+  ## Show motifs selected from the risk table
+  motifs_filtered <- reactive({
+    req(motifs_all())
+    req(render1_filtered())
+    ## plot_tab_CAT() renames symbol -> gene_or_peak_symbol
+    kept <- unique(data.table(symbol = render1_filtered()$gene_or_peak_symbol))
+    ## nomatch = NULL drops motif hits whose peak is not in the filtered table
+    motifs_ort_filtered <- kept[
+      motifs_all()[[2]], on=c('symbol'), nomatch = NULL
+    ]
+    preserved <- unique(motifs_ort_filtered$symbol)
+    motifs_spe_filtered <- kept[
+      motifs_all()[[1]], on=c('symbol'), nomatch = NULL
+    ][
+      , tf_preserved := fifelse(symbol %in% preserved, "YES", "NO")
+    ]
+    list(motifs_spe_filtered, motifs_ort_filtered)
+  })
+
+  output$motif_ref_table <- DT::renderDT({
+    req(motifs_filtered())
+    DT::datatable(
+      motifs_filtered()[[1]], rownames = FALSE,
+      options = list(dom = 't', scrollX = TRUE, scrollY = "400px", paging = FALSE),
+      filter = "top"
+    )
+  })
+
+  output$motif_ortho_table <- DT::renderDT({
+    req(motifs_filtered())
+    DT::datatable(
+      motifs_filtered()[[2]], rownames = FALSE,
+      options = list(dom = 't', scrollX = TRUE, scrollY = "400px", paging = FALSE),
+      filter = "top"
+    )
   })
 
   output$risk_render1 <- DT::renderDT({
