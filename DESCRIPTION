@@ -39,11 +39,6 @@ Imports:
     stringr,
     TFBSTools,
     utils
-Remotes:
-    bioc::GenomeInfoDb,
-    bioc::GenomicRanges,
-    bioc::IRanges,
-    bioc::rtracklayer
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
