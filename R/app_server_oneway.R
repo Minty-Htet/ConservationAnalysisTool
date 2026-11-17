@@ -499,12 +499,27 @@ app_server_oneway <- function(input, output, session) {
     motifs_ort_filtered <- kept[
       motifs_all()[[2]], on=c('symbol'), nomatch = NULL
     ]
-    preserved <- unique(motifs_ort_filtered$symbol)
+    preserved_tf <- paste(motifs_ort_filtered$symbol, motifs_ort_filtered$tf_o, sep="_")
+    preserved_tf <- unique(preserved_tf)
+    preserved_peak <- unique(motifs_ort_filtered$symbol)
     motifs_spe_filtered <- kept[
       motifs_all()[[1]], on=c('symbol'), nomatch = NULL
     ][
-      , tf_preserved := fifelse(symbol %in% preserved, "YES", "NO")
+      , tf_cat := paste(symbol,tf, sep="_")
+    ][
+      , tf_preserved := fifelse(tf_cat %in% preserved_tf, "YES", "NO")
+    ][
+      , peak_preserved := fifelse(symbol %in% preserved_peak, "YES", "NO")
     ]
+    motifs_spe_filtered <- motifs_spe_filtered[,c("symbol","tf","motif_id","tf_preserved", "peak_preserved")]
+    ref_tf <- paste(motifs_spe_filtered$symbol, motifs_spe_filtered$tf, sep="_")
+    ref_tf <- unique(ref_tf)
+    motifs_ort_filtered[
+      , tf_cat := paste(symbol,tf_o, sep="_")
+    ][
+      , new_tf := fifelse(tf_cat %in% ref_tf, "REF", "NEW")
+    ]
+    motifs_ort_filtered <- motifs_ort_filtered[,c("symbol", "tf_o", "motif_id_o", "new_tf")]
     list(motifs_spe_filtered, motifs_ort_filtered)
   })
 

@@ -1,19 +1,50 @@
 Package: ConservationAnalysisTool
 Title: Compare Conserved Regions of Regulation
 Version: 0.0.2.0000
-Authors@R: person("Minhein", "Htet", email="htetm@uchicago.edu", role=c("aut", "cre"))
-Description: Tools to help analyze and compare which genes and accompanying regulatory regions
-    are structurally conserved between species from two lists of genes/regions. Regions of Regulation are expected
-    to be 500 kilo base or higher to reflect potential Topologically Associating Domains.
+Authors@R: 
+    person("Minhein", "Htet", , "htetm@uchicago.edu", role = c("aut", "cre"))
+Description: Tools to help analyze and compare which genes and
+    accompanying regulatory regions are structurally conserved between
+    species from two lists of genes/regions. Regions of Regulation are
+    expected to be 500 kilo base or higher to reflect potential
+    Topologically Associating Domains.
 License: MIT + file LICENSE
-Encoding: UTF-8
-Depends: R (>= 3.5)
-Imports: data.table, DT, forcats, GenomicRanges, grid, ggnewscale, ggplot2, igraph, IRanges, pkgload, R.utils, rappdirs, rtracklayer, stringr, shiny, shinybusy, shinyjs
+Depends: 
+    R (>= 3.5)
+Imports: 
+    BiocGenerics,
+    BSgenome.Hsapiens.UCSC.hg38,
+    BSgenome.Mmusculus.UCSC.mm39,
+    data.table,
+    DT,
+    forcats,
+    GenomeInfoDb,
+    GenomicRanges,
+    ggnewscale,
+    ggplot2,
+    grid,
+    igraph,
+    IRanges,
+    JASPAR2022,
+    motifmatchr,
+    pkgload,
+    R.utils,
+    rappdirs,
+    rtracklayer,
+    S4Vectors,
+    shiny,
+    shinybusy,
+    shinyjs,
+    stats,
+    stringr,
+    TFBSTools,
+    utils
 Remotes:
+    bioc::GenomeInfoDb,
     bioc::GenomicRanges,
-    bioc::GenomeInfoDb
     bioc::IRanges,
     bioc::rtracklayer
+Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3

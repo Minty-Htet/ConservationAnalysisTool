@@ -5,7 +5,12 @@
 \title{Convert genomic positions formatted in
 bed file like data frame between genomes}
 \usage{
-convert_peaks(peaks, genome, threshold = 0.5, chain_path = NULL)
+convert_peaks(
+  peaks,
+  genome = c("mm39", "mm10", "hg38"),
+  threshold = 0.5,
+  chain_path = NULL
+)
 }
 \arguments{
 \item{peaks}{A bed file like dataframe. Requires a "chromosome", "start", "end", "symbol". The symbol is just a unique id for the peak}
